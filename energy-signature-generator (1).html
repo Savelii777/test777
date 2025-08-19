@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Энергоподписей</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e6ed;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 1rem;
+            color: #34495e;
+        }
+        
+        .form-group input {
+            padding: 12px 16px;
+            border: 1px solid #d1d9e6;
+            border-radius: 4px;
+            background: #ffffff;
+            color: #333;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+        
+        .form-group input::placeholder {
+            color: #95a5a6;
+        }
+        
+        .energies-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            background: #3498db;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .button:hover {
+            background: #2980b9;
+        }
+        
+        .button:active {
+            background: #21618c;
+        }
+        
+        .button-secondary {
+            background: #95a5a6;
+        }
+        
+        .button-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .button-success {
+            background: #27ae60;
+        }
+        
+        .button-success:hover {
+            background: #229954;
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .visualization-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #svgContainer {
+            width: 512px;
+            height: 512px;
+            border-radius: 4px;
+            background: #ffffff;
+            border: 2px solid #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        #energySvg {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+        
+        .test-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .test-section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .validator-section {
+            margin-top: 20px;
+        }
+        
+        .file-input {
+            margin: 10px 0;
+        }
+        
+        .file-input input[type="file"] {
+            display: none;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border: 1px solid #bdc3c7;
+        }
+        
+        .file-input-label:hover {
+            background: #d5dbdb;
+        }
+        
+        #testResults, #validationResults {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #2c3e50;
+        }
+        
+        .status-info {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .status-success {
+            background: #d5f4e6;
+            border: 1px solid #27ae60;
+            color: #27ae60;
+        }
+        
+        .status-error {
+            background: #fadbd8;
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+        
+        .status-info {
+            background: #d6eaf8;
+            border: 1px solid #3498db;
+            color: #3498db;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .export-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            #svgContainer {
+                width: 100%;
+                max-width: 400px;
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Генератор Энергоподписей</h1>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <div class="form-group">
+                    <label for="huid">HUID (Уникальный идентификатор):</label>
+                    <input type="text" id="huid" placeholder="Введите HUID" value="user_12345">
+                </div>
+                
+                <div class="form-group">
+                    <label for="timestamp">Timestamp (UTC ms):</label>
+                    <input type="number" id="timestamp" placeholder="Временная метка" value="">
+                </div>
+                
+                <div class="form-group">
+                    <label>Энергии [E1, E2, E3, E4]:</label>
+                    <div class="energies-grid">
+                        <input type="number" id="energy1" placeholder="E1" value="42" step="0.01">
+                        <input type="number" id="energy2" placeholder="E2" value="73" step="0.01">
+                        <input type="number" id="energy3" placeholder="E3" value="156" step="0.01">
+                        <input type="number" id="energy4" placeholder="E4" value="89" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="context">Контекст:</label>
+                    <input type="text" id="context" placeholder="Контекстная информация" value="test_context">
+                </div>
+                
+                <button class="button" onclick="generateSignature()">Генерировать Подпись</button>
+                
+                <div class="export-buttons">
+                    <button class="button button-secondary" onclick="exportPNG()">PNG</button>
+                    <button class="button button-secondary" onclick="exportSVG()">SVG</button>
+                    <button class="button button-success" onclick="exportJSON()">JSON</button>
+                </div>
+            </div>
+            
+            <div class="visualization-section">
+                <div id="svgContainer">
+                    <div style="text-align: center; color: #95a5a6; font-size: 1.1rem;">
+                        Здесь будет отображена энергоподпись
+                    </div>
+                </div>
+                
+                <div id="statusInfo" class="status-info" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Тест уникальности</h3>
+            <div class="form-group">
+                <label for="testBaseHUID">Базовый HUID для теста:</label>
+                <input type="text" id="testBaseHUID" placeholder="base_test" value="test_user">
+            </div>
+            <div class="form-group">
+                <label for="testCount">Количество тестов:</label>
+                <input type="number" id="testCount" placeholder="1000" value="1000" min="10" max="10000">
+            </div>
+            <button class="button button-secondary" onclick="runUniquenessTest()">Запустить тест</button>
+            <div id="testResults"></div>
+        </div>
+        
+        <div class="validator-section">
+            <h3>Валидатор JSON</h3>
+            <div class="file-input">
+                <label for="jsonFile" class="file-input-label">Выберите JSON файл</label>
+                <input type="file" id="jsonFile" accept=".json" onchange="handleFileSelect(event)">
+            </div>
+            <button class="button button-success" onclick="validateFromJSON()">Валидировать</button>
+            <div id="validationResults"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentSignatureData = null;
+        let jsonFileContent = null;
+
+        // Детерминированный PRNG на основе Linear Congruential Generator
+        class DeterministicPRNG {
+            constructor(seed) {
+                this.seed = this.hashSeed(seed);
+            }
+            
+            hashSeed(seed) {
+                let hash = 0;
+                if (seed.length === 0) return hash;
+                for (let i = 0; i < seed.length; i++) {
+                    const char = seed.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32bit integer
+                }
+                return Math.abs(hash);
+            }
+            
+            next() {
+                this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
+                return this.seed / 0x7fffffff;
+            }
+            
+            nextInt(min, max) {
+                return Math.floor(this.next() * (max - min + 1)) + min;
+            }
+            
+            nextFloat(min, max) {
+                return this.next() * (max - min) + min;
+            }
+        }
+
+        // Создание SHA-256 хеша
+        async function createSHA256Hash(input) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(input);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
+
+        // Генерация seed из входных параметров
+        async function generateSeed(huid, ts, energies, context) {
+            const inputString = `${huid}_${ts}_${energies.join('_')}_${context}`;
+            const fullHash = await createSHA256Hash(inputString);
+            return fullHash.substring(0, 32);
+        }
+
+        // Инициализация timestamp
+        function initializeTimestamp() {
+            if (!document.getElementById('timestamp').value) {
+                document.getElementById('timestamp').value = Date.now();
+            }
+        }
+
+        // Генерация цвета на основе энергии
+        function generateColor(energy, prng, alpha = 1) {
+            const baseHue = (energy * 137.5) % 360; // Golden angle approximation
+            const saturation = 70 + prng.nextFloat(0, 30);
+            const lightness = 40 + prng.nextFloat(0, 40);
+            return `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${alpha})`;
+        }
+
+        // Генерация градиента
+        function generateGradient(energies, prng, id) {
+            const color1 = generateColor(energies[0], prng);
+            const color2 = generateColor(energies[1], prng);
+            return `
+                <defs>
+                    <linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2};stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+            `;
+        }
+
+        // Слой 1: Хаотичный фон
+        function generateBackgroundLayer(energies, prng, size = 512) {
+            const pointsCount = prng.nextInt(200, 500);
+            let points = [];
+            let svgElements = '';
+            
+            for (let i = 0; i < pointsCount; i++) {
+                const x = prng.nextFloat(0, size);
+                const y = prng.nextFloat(0, size);
+                const radius = prng.nextFloat(1, 8);
+                const color = generateColor(energies[i % 4], prng, 0.6);
+                
+                points.push({ x: Math.round(x), y: Math.round(y), radius: Math.round(radius * 10) / 10 });
+                svgElements += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" />`;
+            }
+            
+            return {
+                svg: svgElements,
+                metadata: {
+                    points: pointsCount,
+                    avgSize: Math.round((points.reduce((sum, p) => sum + p.radius, 0) / points.length) * 10) / 10
+                }
+            };
+        }
+
+        // Слой 2: Волны и спирали
+        function generateWavesLayer(energies, prng, size = 512) {
+            const wavesCount = prng.nextInt(3, 7);
+            let svgElements = '';
+            const center = size / 2;
+            
+            svgElements += generateGradient(energies, prng, 'waveGradient');
+            
+            for (let i = 0; i < wavesCount; i++) {
+                const amplitude = prng.nextFloat(20, 100);
+                const frequency = prng.nextFloat(0.01, 0.05);
+                const phase = prng.nextFloat(0, Math.PI * 2);
+                const thickness = prng.nextFloat(1, 4);
+                
+                let pathData = `M 0 ${center + amplitude * Math.sin(phase)}`;
+                
+                for (let x = 0; x <= size; x += 2) {
+                    const y = center + amplitude * Math.sin(x * frequency + phase + i);
+                    pathData += ` L ${x} ${y}`;
+                }
+                
+                svgElements += `<path d="${pathData}" stroke="url(#waveGradient)" stroke-width="${thickness}" fill="none" opacity="0.7" />`;
+            }
+            
+            return {
+                svg: svgElements,
+                metadata: {
+                    count: wavesCount,
+                    complexity: Math.round((wavesCount / 7) * 10) / 10
+                }
+            };
+        }
+
+        // Слой 3: Центральная эмблема
+        function generateEmblemLayer(energies, prng, size = 512) {
+            const center = size / 2;
+            const sides = (Math.floor(energies[0]) % 12) + 3;
+            const radius = prng.nextFloat(30, 80);
+            const color = generateColor(energies[3], prng, 0.8);
+            
+            let pathData = '';
+            const angleStep = (2 * Math.PI) / sides;
+            
+            for (let i = 0; i < sides; i++) {
+                const angle = i * angleStep - Math.PI / 2;
+                const x = center + radius * Math.cos(angle);
+                const y = center + radius * Math.sin(angle);
+                
+                if (i === 0) {
+                    pathData = `M ${x} ${y}`;
+                } else {
+                    pathData += ` L ${x} ${y}`;
+                }
+            }
+            pathData += ' Z';
+            
+            const svgElements = `<path d="${pathData}" fill="${color}" stroke="${generateColor(energies[0], prng)}" stroke-width="2" />`;
+            
+            return {
+                svg: svgElements,
+                metadata: {
+                    type: sides === 3 ? 'triangle' : sides === 4 ? 'square' : sides > 8 ? 'star' : 'polygon',
+                    sides: sides,
+                    radius: Math.round(radius)
+                }
+            };
+        }
+
+        // Основная функция генерации подписи
+        async function generateSignature() {
+            try {
+                showStatus('Генерация...', 'info');
+                
+                const huid = document.getElementById('huid').value.trim();
+                const ts = parseInt(document.getElementById('timestamp').value);
+                const energies = [
+                    parseFloat(document.getElementById('energy1').value),
+                    parseFloat(document.getElementById('energy2').value),
+                    parseFloat(document.getElementById('energy3').value),
+                    parseFloat(document.getElementById('energy4').value)
+                ];
+                const context = document.getElementById('context').value.trim();
+                
+                if (!huid || !ts || energies.some(isNaN) || !context) {
+                    showStatus('Пожалуйста, заполните все поля', 'error');
+                    return;
+                }
+                
+                const startTime = performance.now();
+                
+                // Генерация seed и hash
+                const seed = await generateSeed(huid, ts, energies, context);
+                const inputString = `${huid}_${ts}_${energies.join('_')}_${context}`;
+                const fullHash = await createSHA256Hash(inputString);
+                
+                // Инициализация PRNG
+                const prng = new DeterministicPRNG(seed);
+                
+                // Генерация слоев
+                const backgroundLayer = generateBackgroundLayer(energies, prng);
+                const wavesLayer = generateWavesLayer(energies, prng);
+                const emblemLayer = generateEmblemLayer(energies, prng);
+                
+                // Создание SVG
+                const svgContent = `
+                    <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                        ${wavesLayer.svg}
+                        ${backgroundLayer.svg}
+                        ${emblemLayer.svg}
+                    </svg>
+                `;
+                
+                // Отображение результата
+                document.getElementById('svgContainer').innerHTML = svgContent;
+                
+                // Сохранение данных для экспорта
+                currentSignatureData = {
+                    seedHex: seed,
+                    hashHex: fullHash,
+                    inputs: { huid, ts, energies, context },
+                    layers: {
+                        background: backgroundLayer.metadata,
+                        waves: wavesLayer.metadata,
+                        emblem: emblemLayer.metadata
+                    },
+                    metadata: {
+                        generatedAt: new Date().toISOString(),
+                        version: "1.0",
+                        generationTime: Math.round(performance.now() - startTime)
+                    },
+                    svgContent: svgContent
+                };
+                
+                showStatus(`Генерация завершена за ${currentSignatureData.metadata.generationTime}мс`, 'success');
+                
+            } catch (error) {
+                console.error('Ошибка генерации:', error);
+                showStatus('Ошибка генерации: ' + error.message, 'error');
+            }
+        }
+
+        // Экспорт в PNG
+        function exportPNG() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error');
+                return;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            const img = new Image();
+            const svgBlob = new Blob([currentSignatureData.svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                
+                const link = document.createElement('a');
+                link.download = `energy-signature-${currentSignatureData.inputs.huid}-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                showStatus('PNG экспортирован', 'success');
+            };
+            
+            img.src = url;
+        }
+
+        // Экспорт в SVG
+        function exportSVG() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error');
+                return;
+            }
+            
+            const blob = new Blob([currentSignatureData.svgContent], { type: 'image/svg+xml' });
+            const link = document.createElement('a');
+            link.download = `energy-signature-${currentSignatureData.inputs.huid}-${Date.now()}.svg`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            
+            showStatus('SVG экспортирован', 'success');
+        }
+
+        // Экспорт в JSON
+        function exportJSON() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error');
+                return;
+            }
+            
+            const jsonData = {
+                seedHex: currentSignatureData.seedHex,
+                hashHex: currentSignatureData.hashHex,
+                inputs: currentSignatureData.inputs,
+                layers: currentSignatureData.layers,
+                metadata: currentSignatureData.metadata
+            };
+            
+            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.download = `energy-signature-${currentSignatureData.inputs.huid}-${Date.now()}.json`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            
+            showStatus('JSON экспортирован', 'success');
+        }
+
+        // Тест уникальности
+        async function runUniquenessTest() {
+            const baseHUID = document.getElementById('testBaseHUID').value.trim();
+            const testCount = parseInt(document.getElementById('testCount').value);
+            
+            if (!baseHUID || !testCount || testCount < 10) {
+                showStatus('Введите корректные данные для теста', 'error');
+                return;
+            }
+            
+            showStatus('Запуск теста уникальности...', 'info');
+            document.getElementById('testResults').textContent = 'Тестирование...';
+            
+            const hashes = new Set();
+            const collisions = [];
+            const fixedEnergies = [42, 73, 156, 89];
+            const fixedContext = 'uniqueness_test';
+            const fixedTs = Date.now();
+            
+            for (let i = 0; i < testCount; i++) {
+                const testHUID = `${baseHUID}_${i}`;
+                const seed = await generateSeed(testHUID, fixedTs, fixedEnergies, fixedContext);
+                const hash = await createSHA256Hash(`${testHUID}_${fixedTs}_${fixedEnergies.join('_')}_${fixedContext}`);
+                
+                if (hashes.has(hash)) {
+                    collisions.push({ index: i, hash, huid: testHUID });
+                } else {
+                    hashes.add(hash);
+                }
+                
+                if (i % 100 === 0) {
+                    document.getElementById('testResults').textContent = `Обработано: ${i + 1}/${testCount}`;
+                    await new Promise(resolve => setTimeout(resolve, 1));
+                }
+            }
+            
+            const results = `
+Тест уникальности завершен:
+- Всего протестировано: ${testCount}
+- Уникальных хешей: ${hashes.size}
+- Коллизий: ${collisions.length}
+
+${collisions.length > 0 ? 
+  'НАЙДЕНЫ КОЛЛИЗИИ:\n' + collisions.map(c => `HUID: ${c.huid}, Hash: ${c.hash}`).join('\n') :
+  'КОЛЛИЗИЙ НЕ ОБНАРУЖЕНО ✅'
+}
+
+Статус: ${collisions.length === 0 ? 'ТЕСТ ПРОЙДЕН' : 'ТЕСТ НЕ ПРОЙДЕН'}
+            `;
+            
+            document.getElementById('testResults').textContent = results;
+            showStatus(collisions.length === 0 ? 'Тест пройден успешно' : 'Обнаружены коллизии!', 
+                     collisions.length === 0 ? 'success' : 'error');
+        }
+
+        // Обработка выбора файла
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        jsonFileContent = JSON.parse(e.target.result);
+                        showStatus(`JSON файл загружен: ${file.name}`, 'success');
+                    } catch (error) {
+                        showStatus('Ошибка чтения JSON файла', 'error');
+                        jsonFileContent = null;
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                showStatus('Пожалуйста, выберите JSON файл', 'error');
+            }
+        }
+
+        // Валидация JSON
+        async function validateFromJSON() {
+            if (!jsonFileContent) {
+                showStatus('Сначала загрузите JSON файл', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Валидация...', 'info');
+                
+                const { seedHex, hashHex, inputs } = jsonFileContent;
+                const { huid, ts, energies, context } = inputs;
+                
+                // Пересчет seed и hash
+                const recalculatedSeed = await generateSeed(huid, ts, energies, context);
+                const inputString = `${huid}_${ts}_${energies.join('_')}_${context}`;
+                const recalculatedHash = await createSHA256Hash(inputString);
+                
+                const seedMatch = seedHex === recalculatedSeed;
+                const hashMatch = hashHex === recalculatedHash;
+                
+                const results = `
+Валидация JSON метаданных:
+
+Исходные данные:
+- HUID: ${huid}
+- Timestamp: ${ts}
+- Energies: [${energies.join(', ')}]
+- Context: ${context}
+
+Проверка Seed:
+- Исходный: ${seedHex}
+- Пересчитанный: ${recalculatedSeed}
+- Совпадает: ${seedMatch ? '✅ ДА' : '❌ НЕТ'}
+
+Проверка Hash:
+- Исходный: ${hashHex}
+- Пересчитанный: ${recalculatedHash}
+- Совпадает: ${hashMatch ? '✅ ДА' : '❌ НЕТ'}
+
+Общий результат: ${seedMatch && hashMatch ? '✅ ВАЛИДАЦИЯ ПРОЙДЕНА' : '❌ ВАЛИДАЦИЯ НЕ ПРОЙДЕНА'}
+                `;
+                
+                document.getElementById('validationResults').textContent = results;
+                showStatus(seedMatch && hashMatch ? 'Валидация пройдена' : 'Валидация не пройдена',
+                          seedMatch && hashMatch ? 'success' : 'error');
+                
+            } catch (error) {
+                console.error('Ошибка валидации:', error);
+                showStatus('Ошибка валидации: ' + error.message, 'error');
+            }
+        }
+
+        // Показ статуса
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusInfo');
+            statusElement.textContent = message;
+            statusElement.className = `status-info status-${type}`;
+            statusElement.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        // Обработка headless режима
+        function handleHeadlessMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('auto') === '1') {
+                const format = urlParams.get('fmt') || 'json';
+                const size = parseInt(urlParams.get('size')) || 512;
+                
+                // Скрыть UI
+                document.body.style.display = 'none';
+                
+                // Генерация с дефолтными параметрами
+                setTimeout(async () => {
+                    await generateSignature();
+                    
+                    switch (format) {
+                        case 'png':
+                            exportPNG();
+                            break;
+                        case 'svg':
+                            exportSVG();
+                            break;
+                        case 'json':
+                            if (currentSignatureData) {
+                                document.body.innerHTML = `<pre>${JSON.stringify({
+                                    seedHex: currentSignatureData.seedHex,
+                                    hashHex: currentSignatureData.hashHex,
+                                    inputs: currentSignatureData.inputs,
+                                    layers: currentSignatureData.layers,
+                                    metadata: currentSignatureData.metadata
+                                }, null, 2)}</pre>`;
+                                document.body.style.display = 'block';
+                            }
+                            break;
+                    }
+                }, 100);
+            }
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTimestamp();
+            handleHeadlessMode();
+        });
+    </script>
+</body>
+</html>
