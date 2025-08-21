@@ -277,13 +277,21 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Энергии [E1, E2, E3, E4]:</label>
+                    <label>Энергии [P, I, E, C] (0-5):</label>
                     <div class="energies-grid">
-                        <input type="number" id="energy1" placeholder="E1" value="42" step="0.01">
-                        <input type="number" id="energy2" placeholder="E2" value="73" step="0.01">
-                        <input type="number" id="energy3" placeholder="E3" value="156" step="0.01">
-                        <input type="number" id="energy4" placeholder="E4" value="89" step="0.01">
+                        <input type="number" id="energy1" placeholder="P" value="3" min="0" max="5" step="1">
+                        <input type="number" id="energy2" placeholder="I" value="4" min="0" max="5" step="1">
+                        <input type="number" id="energy3" placeholder="E" value="2" min="0" max="5" step="1">
+                        <input type="number" id="energy4" placeholder="C" value="5" min="0" max="5" step="1">
                     </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="style">Стиль:</label>
+                    <select id="style" style="padding: 12px 16px; border: 1px solid #d1d9e6; border-radius: 4px; background: #ffffff; color: #333; font-size: 1rem;">
+                        <option value="organica">Organica</option>
+                        <option value="geometric">Geometric</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -312,16 +320,11 @@
         </div>
         
         <div class="test-section">
-            <h3>Тест уникальности</h3>
-            <div class="form-group">
-                <label for="testBaseHUID">Базовый HUID для теста:</label>
-                <input type="text" id="testBaseHUID" placeholder="base_test" value="test_user">
-            </div>
-            <div class="form-group">
-                <label for="testCount">Количество тестов:</label>
-                <input type="number" id="testCount" placeholder="1000" value="1000" min="10" max="10000">
-            </div>
-            <button class="button button-secondary" onclick="runUniquenessTest()">Запустить тест</button>
+            <h3>Tests</h3>
+            <p>T1: Детерминизм (3x одинаковый вход)</p>
+            <p>T2: Уникальность (10 различных HUID)</p>
+            <p>T3: Стили (organica/geometric)</p>
+            <button class="button button-secondary" onclick="runTests()">Запустить тесты</button>
             <div id="testResults"></div>
         </div>
         
@@ -340,26 +343,35 @@
         let currentSignatureData = null;
         let jsonFileContent = null;
 
-        // Детерминированный PRNG на основе Linear Congruential Generator
+        const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+        const sha256Hex = async s => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+        const u32 = (h, o) => parseInt(h.slice(o, o + 8), 16) >>> 0;
+        
+        const sfc32 = (a, b, c, d) => {
+            return function() {
+                a |= 0; b |= 0; c |= 0; d |= 0;
+                let t = (a + b | 0) + d | 0;
+                d = d + 1 | 0;
+                a = b ^ (b >>> 9);
+                b = c + (c << 3) | 0;
+                c = (c << 21) | (c >>> 11);
+                c = c + t | 0;
+                return (t >>> 0) / 4294967296;
+            };
+        };
+        
         class DeterministicPRNG {
-            constructor(seed) {
-                this.seed = this.hashSeed(seed);
-            }
-            
-            hashSeed(seed) {
-                let hash = 0;
-                if (seed.length === 0) return hash;
-                for (let i = 0; i < seed.length; i++) {
-                    const char = seed.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash; // Convert to 32bit integer
-                }
-                return Math.abs(hash);
+            constructor(seedHex) {
+                this.rng = sfc32(
+                    u32(seedHex, 0),
+                    u32(seedHex, 8),
+                    u32(seedHex, 16),
+                    u32(seedHex, 24)
+                );
             }
             
             next() {
-                this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
-                return this.seed / 0x7fffffff;
+                return this.rng();
             }
             
             nextInt(min, max) {
@@ -371,39 +383,29 @@
             }
         }
 
-        // Создание SHA-256 хеша
-        async function createSHA256Hash(input) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(input);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            return hashHex;
+        async function generateSeed(huid, ts, energies, context, style) {
+            const seedString = `${huid}|${ts}|${energies.join(',')}|${context}|${style}|v11`;
+            return await sha256Hex(seedString);
+        }
+        
+        function clampEnergy(value) {
+            const num = parseInt(value) || 0;
+            return Math.max(0, Math.min(5, num));
         }
 
-        // Генерация seed из входных параметров
-        async function generateSeed(huid, ts, energies, context) {
-            const inputString = `${huid}_${ts}_${energies.join('_')}_${context}`;
-            const fullHash = await createSHA256Hash(inputString);
-            return fullHash.substring(0, 32);
-        }
-
-        // Инициализация timestamp
         function initializeTimestamp() {
             if (!document.getElementById('timestamp').value) {
                 document.getElementById('timestamp').value = Date.now();
             }
         }
 
-        // Генерация цвета на основе энергии
         function generateColor(energy, prng, alpha = 1) {
-            const baseHue = (energy * 137.5) % 360; // Golden angle approximation
+            const baseHue = (energy * 137.5) % 360;
             const saturation = 70 + prng.nextFloat(0, 30);
             const lightness = 40 + prng.nextFloat(0, 40);
             return `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${alpha})`;
         }
 
-        // Генерация градиента
         function generateGradient(energies, prng, id) {
             const color1 = generateColor(energies[0], prng);
             const color2 = generateColor(energies[1], prng);
@@ -417,7 +419,6 @@
             `;
         }
 
-        // Слой 1: Хаотичный фон
         function generateBackgroundLayer(energies, prng, size = 512) {
             const pointsCount = prng.nextInt(200, 500);
             let points = [];
@@ -442,7 +443,6 @@
             };
         }
 
-        // Слой 2: Волны и спирали
         function generateWavesLayer(energies, prng, size = 512) {
             const wavesCount = prng.nextInt(3, 7);
             let svgElements = '';
@@ -475,7 +475,6 @@
             };
         }
 
-        // Слой 3: Центральная эмблема
         function generateEmblemLayer(energies, prng, size = 512) {
             const center = size / 2;
             const sides = (Math.floor(energies[0]) % 12) + 3;
@@ -510,7 +509,6 @@
             };
         }
 
-        // Основная функция генерации подписи
         async function generateSignature() {
             try {
                 showStatus('Генерация...', 'info');
@@ -518,34 +516,29 @@
                 const huid = document.getElementById('huid').value.trim();
                 const ts = parseInt(document.getElementById('timestamp').value);
                 const energies = [
-                    parseFloat(document.getElementById('energy1').value),
-                    parseFloat(document.getElementById('energy2').value),
-                    parseFloat(document.getElementById('energy3').value),
-                    parseFloat(document.getElementById('energy4').value)
+                    clampEnergy(document.getElementById('energy1').value),
+                    clampEnergy(document.getElementById('energy2').value),
+                    clampEnergy(document.getElementById('energy3').value),
+                    clampEnergy(document.getElementById('energy4').value)
                 ];
                 const context = document.getElementById('context').value.trim();
+                const style = document.getElementById('style').value;
                 
-                if (!huid || !ts || energies.some(isNaN) || !context) {
+                if (!huid || !ts || energies.some(isNaN) || !context || !style) {
                     showStatus('Пожалуйста, заполните все поля', 'error');
                     return;
                 }
                 
                 const startTime = performance.now();
                 
-                // Генерация seed и hash
-                const seed = await generateSeed(huid, ts, energies, context);
-                const inputString = `${huid}_${ts}_${energies.join('_')}_${context}`;
-                const fullHash = await createSHA256Hash(inputString);
+                const seedHex = await generateSeed(huid, ts, energies, context, style);
                 
-                // Инициализация PRNG
-                const prng = new DeterministicPRNG(seed);
+                const prng = new DeterministicPRNG(seedHex);
                 
-                // Генерация слоев
                 const backgroundLayer = generateBackgroundLayer(energies, prng);
                 const wavesLayer = generateWavesLayer(energies, prng);
                 const emblemLayer = generateEmblemLayer(energies, prng);
                 
-                // Создание SVG
                 const svgContent = `
                     <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
                         ${wavesLayer.svg}
@@ -554,14 +547,11 @@
                     </svg>
                 `;
                 
-                // Отображение результата
                 document.getElementById('svgContainer').innerHTML = svgContent;
                 
-                // Сохранение данных для экспорта
-                currentSignatureData = {
-                    seedHex: seed,
-                    hashHex: fullHash,
-                    inputs: { huid, ts, energies, context },
+                const jsonData = {
+                    seedHex: seedHex,
+                    inputs: { huid, ts, energies, context, style },
                     layers: {
                         background: backgroundLayer.metadata,
                         waves: wavesLayer.metadata,
@@ -569,9 +559,17 @@
                     },
                     metadata: {
                         generatedAt: new Date().toISOString(),
-                        version: "1.0",
+                        version: "v11",
                         generationTime: Math.round(performance.now() - startTime)
-                    },
+                    }
+                };
+                
+                const canonicalJson = JSON.stringify(jsonData, Object.keys(jsonData).sort());
+                const hashHex = await sha256Hex(canonicalJson);
+                
+                currentSignatureData = {
+                    ...jsonData,
+                    hashHex: hashHex,
                     svgContent: svgContent
                 };
                 
@@ -583,7 +581,6 @@
             }
         }
 
-        // Экспорт в PNG
         function exportPNG() {
             if (!currentSignatureData) {
                 showStatus('Сначала сгенерируйте подпись', 'error');
@@ -614,7 +611,6 @@
             img.src = url;
         }
 
-        // Экспорт в SVG
         function exportSVG() {
             if (!currentSignatureData) {
                 showStatus('Сначала сгенерируйте подпись', 'error');
@@ -630,7 +626,6 @@
             showStatus('SVG экспортирован', 'success');
         }
 
-        // Экспорт в JSON
         function exportJSON() {
             if (!currentSignatureData) {
                 showStatus('Сначала сгенерируйте подпись', 'error');
@@ -654,62 +649,72 @@
             showStatus('JSON экспортирован', 'success');
         }
 
-        // Тест уникальности
-        async function runUniquenessTest() {
-            const baseHUID = document.getElementById('testBaseHUID').value.trim();
-            const testCount = parseInt(document.getElementById('testCount').value);
+        async function runTests() {
+            showStatus('Запуск тестов...', 'info');
+            document.getElementById('testResults').textContent = 'Выполнение тестов...';
             
-            if (!baseHUID || !testCount || testCount < 10) {
-                showStatus('Введите корректные данные для теста', 'error');
-                return;
+            let results = 'РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ:\n\n';
+            
+            results += 'T1 DETERMINISM TEST:\n';
+            const testInputs = {
+                huid: 'TEST-DETERMINISM',
+                ts: 1640995200000,
+                energies: [1, 2, 3, 4],
+                context: 'test',
+                style: 'organica'
+            };
+            
+            const svgHashes = [];
+            for (let i = 0; i < 3; i++) {
+                const seedHex = await generateSeed(testInputs.huid, testInputs.ts, testInputs.energies, testInputs.context, testInputs.style);
+                const prng = new DeterministicPRNG(seedHex);
+                const bg = generateBackgroundLayer(testInputs.energies, prng);
+                const waves = generateWavesLayer(testInputs.energies, prng);
+                const emblem = generateEmblemLayer(testInputs.energies, prng);
+                const svg = `<svg>${waves.svg}${bg.svg}${emblem.svg}</svg>`;
+                const svgHash = await sha256Hex(svg);
+                svgHashes.push(svgHash);
             }
             
-            showStatus('Запуск теста уникальности...', 'info');
-            document.getElementById('testResults').textContent = 'Тестирование...';
+            const t1Pass = svgHashes[0] === svgHashes[1] && svgHashes[1] === svgHashes[2];
+            results += `Результат: ${t1Pass ? 'PASS' : 'FAIL'}\n`;
+            results += `SVG Hash: ${svgHashes[0]}\n\n`;
             
-            const hashes = new Set();
-            const collisions = [];
-            const fixedEnergies = [42, 73, 156, 89];
-            const fixedContext = 'uniqueness_test';
-            const fixedTs = Date.now();
-            
-            for (let i = 0; i < testCount; i++) {
-                const testHUID = `${baseHUID}_${i}`;
-                const seed = await generateSeed(testHUID, fixedTs, fixedEnergies, fixedContext);
-                const hash = await createSHA256Hash(`${testHUID}_${fixedTs}_${fixedEnergies.join('_')}_${fixedContext}`);
-                
-                if (hashes.has(hash)) {
-                    collisions.push({ index: i, hash, huid: testHUID });
-                } else {
-                    hashes.add(hash);
-                }
-                
-                if (i % 100 === 0) {
-                    document.getElementById('testResults').textContent = `Обработано: ${i + 1}/${testCount}`;
-                    await new Promise(resolve => setTimeout(resolve, 1));
-                }
+            results += 'T2 UNIQUENESS TEST (10 HUID variants):\n';
+            const uniqueHashes = new Set();
+            for (let i = 0; i < 10; i++) {
+                const huid = `TEST-${i}`;
+                const seedHex = await generateSeed(huid, 1640995200000, [1, 2, 3, 4], 'test', 'organica');
+                const jsonData = { seedHex, inputs: { huid, ts: 1640995200000, energies: [1, 2, 3, 4], context: 'test', style: 'organica' } };
+                const canonicalJson = JSON.stringify(jsonData, Object.keys(jsonData).sort());
+                const hashHex = await sha256Hex(canonicalJson);
+                uniqueHashes.add(hashHex);
             }
             
-            const results = `
-Тест уникальности завершен:
-- Всего протестировано: ${testCount}
-- Уникальных хешей: ${hashes.size}
-- Коллизий: ${collisions.length}
-
-${collisions.length > 0 ? 
-  'НАЙДЕНЫ КОЛЛИЗИИ:\n' + collisions.map(c => `HUID: ${c.huid}, Hash: ${c.hash}`).join('\n') :
-  'КОЛЛИЗИЙ НЕ ОБНАРУЖЕНО ✅'
-}
-
-Статус: ${collisions.length === 0 ? 'ТЕСТ ПРОЙДЕН' : 'ТЕСТ НЕ ПРОЙДЕН'}
-            `;
+            const t2Pass = uniqueHashes.size === 10;
+            results += `Результат: ${t2Pass ? 'PASS' : 'FAIL'}\n`;
+            results += `Уникальных хешей: ${uniqueHashes.size}/10\n\n`;
+            
+            results += 'T3 STYLES TEST:\n';
+            let t3Pass = true;
+            try {
+                const organicaSeed = await generateSeed('TEST-STYLE', 1640995200000, [2, 3, 4, 5], 'test', 'organica');
+                const geometricSeed = await generateSeed('TEST-STYLE', 1640995200000, [2, 3, 4, 5], 'test', 'geometric');
+                t3Pass = organicaSeed !== geometricSeed;
+            } catch (error) {
+                t3Pass = false;
+                results += `Ошибка: ${error.message}\n`;
+            }
+            
+            results += `Результат: ${t3Pass ? 'PASS' : 'FAIL'}\n\n`;
+            
+            const allPass = t1Pass && t2Pass && t3Pass;
+            results += `ОБЩИЙ РЕЗУЛЬТАТ: ${allPass ? 'ALL TESTS PASSED ✅' : 'SOME TESTS FAILED ❌'}`;
             
             document.getElementById('testResults').textContent = results;
-            showStatus(collisions.length === 0 ? 'Тест пройден успешно' : 'Обнаружены коллизии!', 
-                     collisions.length === 0 ? 'success' : 'error');
+            showStatus(allPass ? 'Все тесты пройдены' : 'Некоторые тесты не пройдены', allPass ? 'success' : 'error');
         }
 
-        // Обработка выбора файла
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (file && file.type === 'application/json') {
@@ -729,7 +734,6 @@ ${collisions.length > 0 ?
             }
         }
 
-        // Валидация JSON
         async function validateFromJSON() {
             if (!jsonFileContent) {
                 showStatus('Сначала загрузите JSON файл', 'error');
@@ -740,12 +744,14 @@ ${collisions.length > 0 ?
                 showStatus('Валидация...', 'info');
                 
                 const { seedHex, hashHex, inputs } = jsonFileContent;
-                const { huid, ts, energies, context } = inputs;
+                const { huid, ts, energies, context, style } = inputs;
                 
-                // Пересчет seed и hash
-                const recalculatedSeed = await generateSeed(huid, ts, energies, context);
-                const inputString = `${huid}_${ts}_${energies.join('_')}_${context}`;
-                const recalculatedHash = await createSHA256Hash(inputString);
+                const recalculatedSeed = await generateSeed(huid, ts, energies, context, style || 'organica');
+                
+                const jsonWithoutHash = { ...jsonFileContent };
+                delete jsonWithoutHash.hashHex;
+                const canonicalJson = JSON.stringify(jsonWithoutHash, Object.keys(jsonWithoutHash).sort());
+                const recalculatedHash = await sha256Hex(canonicalJson);
                 
                 const seedMatch = seedHex === recalculatedSeed;
                 const hashMatch = hashHex === recalculatedHash;
@@ -758,18 +764,19 @@ ${collisions.length > 0 ?
 - Timestamp: ${ts}
 - Energies: [${energies.join(', ')}]
 - Context: ${context}
+- Style: ${style || 'organica'}
 
-Проверка Seed:
+Проверка SeedHex:
 - Исходный: ${seedHex}
 - Пересчитанный: ${recalculatedSeed}
-- Совпадает: ${seedMatch ? '✅ ДА' : '❌ НЕТ'}
+- Совпадает: ${seedMatch ? 'ДА' : 'НЕТ'}
 
-Проверка Hash:
+Проверка HashHex:
 - Исходный: ${hashHex}
 - Пересчитанный: ${recalculatedHash}
-- Совпадает: ${hashMatch ? '✅ ДА' : '❌ НЕТ'}
+- Совпадает: ${hashMatch ? 'ДА' : 'НЕТ'}
 
-Общий результат: ${seedMatch && hashMatch ? '✅ ВАЛИДАЦИЯ ПРОЙДЕНА' : '❌ ВАЛИДАЦИЯ НЕ ПРОЙДЕНА'}
+Общий результат: ${seedMatch && hashMatch ? 'ВАЛИДАЦИЯ ПРОЙДЕНА' : 'ВАЛИДАЦИЯ НЕ ПРОЙДЕНА'}
                 `;
                 
                 document.getElementById('validationResults').textContent = results;
@@ -782,7 +789,6 @@ ${collisions.length > 0 ?
             }
         }
 
-        // Показ статуса
         function showStatus(message, type) {
             const statusElement = document.getElementById('statusInfo');
             statusElement.textContent = message;
@@ -796,7 +802,6 @@ ${collisions.length > 0 ?
             }
         }
 
-        // Обработка headless режима
         function handleHeadlessMode() {
             const urlParams = new URLSearchParams(window.location.search);
             
@@ -804,10 +809,8 @@ ${collisions.length > 0 ?
                 const format = urlParams.get('fmt') || 'json';
                 const size = parseInt(urlParams.get('size')) || 512;
                 
-                // Скрыть UI
                 document.body.style.display = 'none';
                 
-                // Генерация с дефолтными параметрами
                 setTimeout(async () => {
                     await generateSignature();
                     
@@ -835,7 +838,6 @@ ${collisions.length > 0 ?
             }
         }
 
-        // Инициализация
         document.addEventListener('DOMContentLoaded', function() {
             initializeTimestamp();
             handleHeadlessMode();
