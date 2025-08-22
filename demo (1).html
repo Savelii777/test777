@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Энергоподписей</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e6ed;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 1rem;
+            color: #34495e;
+        }
+        
+        .form-group input {
+            padding: 12px 16px;
+            border: 1px solid #d1d9e6;
+            border-radius: 4px;
+            background: #ffffff;
+            color: #333;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+        
+        .form-group input::placeholder {
+            color: #95a5a6;
+        }
+        
+        .energies-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            background: #3498db;
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .button:hover {
+            background: #2980b9;
+        }
+        
+        .button:active {
+            background: #21618c;
+        }
+        
+        .button-secondary {
+            background: #95a5a6;
+        }
+        
+        .button-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .button-success {
+            background: #27ae60;
+        }
+        
+        .button-success:hover {
+            background: #229954;
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .visualization-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #svgContainer {
+            width: 512px;
+            height: 512px;
+            border-radius: 4px;
+            background: #ffffff;
+            border: 2px solid #ecf0f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        #energySvg {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+        
+        .test-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .test-section h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .validator-section {
+            margin-top: 20px;
+        }
+        
+        .file-input {
+            margin: 10px 0;
+        }
+        
+        .file-input input[type="file"] {
+            display: none;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border: 1px solid #bdc3c7;
+        }
+        
+        .file-input-label:hover {
+            background: #d5dbdb;
+        }
+        
+        #testResults, #validationResults {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #2c3e50;
+        }
+        
+        .status-info {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .status-success {
+            background: #d5f4e6;
+            border: 1px solid #27ae60;
+            color: #27ae60;
+        }
+        
+        .status-error {
+            background: #fadbd8;
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+        
+        .status-info {
+            background: #d6eaf8;
+            border: 1px solid #3498db;
+            color: #3498db;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .export-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            #svgContainer {
+                width: 100%;
+                max-width: 400px;
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Генератор Энергоподписей</h1>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <div class="form-group">
+                    <label for="huid">HUID (Уникальный идентификатор):</label>
+                    <input type="text" id="huid" placeholder="Введите HUID" value="user_12345">
+                </div>
+                
+                <div class="form-group">
+                    <label for="timestamp">Timestamp (UTC ms):</label>
+                    <input type="number" id="timestamp" placeholder="Временная метка" value="">
+                </div>
+                
+                <div class="form-group">
+                    <label>Энергии [P, I, E, C] (0-5):</label>
+                    <div class="energies-grid">
+                        <input type="number" id="energy1" placeholder="P" value="3" min="0" max="5" step="1">
+                        <input type="number" id="energy2" placeholder="I" value="4" min="0" max="5" step="1">
+                        <input type="number" id="energy3" placeholder="E" value="2" min="0" max="5" step="1">
+                        <input type="number" id="energy4" placeholder="C" value="5" min="0" max="5" step="1">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="style">Стиль:</label>
+                    <select id="style" style="padding: 12px 16px; border: 1px solid #d1d9e6; border-radius: 4px; background: #ffffff; color: #333; font-size: 1rem;">
+                        <option value="organica">Organica</option>
+                        <option value="geometric">Geometric</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="context">Контекст:</label>
+                    <input type="text" id="context" placeholder="Контекстная информация" value="test_context">
+                </div>
+                
+                <button class="button" onclick="generateSignature()">Генерировать Подпись</button>
+                
+                <div class="export-buttons">
+                    <button class="button button-secondary" onclick="exportPNG()">PNG</button>
+                    <button class="button button-secondary" onclick="exportSVG()">SVG</button>
+                    <button class="button button-success" onclick="exportJSON()">JSON</button>
+                </div>
+            </div>
+            
+            <div class="visualization-section">
+                <div id="svgContainer">
+                    <div style="text-align: center; color: #95a5a6; font-size: 1.1rem;">
+                        Здесь будет отображена энергоподпись
+                    </div>
+                </div>
+                
+                <div id="statusInfo" class="status-info" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Tests</h3>
+            <p>T1: Детерминизм (3x одинаковый вход)</p>
+            <p>T2: Уникальность (10 различных HUID)</p>
+            <p>T3: Стили (organica/geometric)</p>
+            <button class="button button-secondary" onclick="runTests()">Запустить тесты</button>
+            <div id="testResults"></div>
+        </div>
+        
+        <div class="validator-section">
+            <h3>Валидатор JSON</h3>
+            <div class="file-input">
+                <label for="jsonFile" class="file-input-label">Выберите JSON файл</label>
+                <input type="file" id="jsonFile" accept=".json" onchange="handleFileSelect(event)">
+            </div>
+            <button class="button button-success" onclick="validateFromJSON()">Валидировать</button>
+            <div id="validationResults"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentSignatureData = null;
+        let jsonFileContent = null;
+
+        const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+        const sha256Hex = async s => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+        const u32 = (h, o) => parseInt(h.slice(o, o + 8), 16) >>> 0;
+        
+        const sfc32 = (a, b, c, d) => {
+            return function() {
+                a |= 0; b |= 0; c |= 0; d |= 0;
+                let t = (a + b | 0) + d | 0;
+                d = d + 1 | 0;
+                a = b ^ (b >>> 9);
+                b = c + (c << 3) | 0;
+                c = (c << 21) | (c >>> 11);
+                c = c + t | 0;
+                return (t >>> 0) / 4294967296;
+            };
+        };
+        
+        class DeterministicPRNG {
+            constructor(seedHex) {
+                this.rng = sfc32(
+                    u32(seedHex, 0),
+                    u32(seedHex, 8),
+                    u32(seedHex, 16),
+                    u32(seedHex, 24)
+                );
+            }
+            
+            next() {
+                return this.rng();
+            }
+            
+            nextInt(min, max) {
+                return Math.floor(this.next() * (max - min + 1)) + min;
+            }
+            
+            nextFloat(min, max) {
+                return this.next() * (max - min) + min;
+            }
+        }
+
+        async function generateSeed(huid, ts, energies, context, style) {
+            const seedString = `${huid}|${ts}|${energies.join(',')}|${context}|${style}|v11`;
+            return await sha256Hex(seedString);
+        }
+        
+        function clampEnergy(value) {
+            const num = parseInt(value) || 0;
+            return Math.max(0, Math.min(5, num));
+        }
+
+        function canonicalJSON(obj) {
+            if (typeof obj !== 'object' || obj === null) {
+                return obj;
+            }
+            
+            if (Array.isArray(obj)) {
+                return obj.map(canonicalJSON);
+            }
+            
+            const sortedKeys = Object.keys(obj).sort();
+            const result = {};
+            for (const key of sortedKeys) {
+                result[key] = canonicalJSON(obj[key]);
+            }
+            return result;
+        }
+
+        function initializeTimestamp() {
+            if (!document.getElementById('timestamp').value) {
+                document.getElementById('timestamp').value = Date.now();
+            }
+        }
+
+        function generateColor(energy, prng, alpha = 1, muted = false) {
+            const baseHue = (energy * 137.5) % 360;
+            const saturation = muted ? 15 + prng.nextFloat(0, 25) : 70 + prng.nextFloat(0, 30);
+            const lightness = muted ? 65 + prng.nextFloat(0, 25) : 40 + prng.nextFloat(0, 40);
+            return `hsla(${baseHue}, ${saturation}%, ${lightness}%, ${alpha})`;
+        }
+
+        function generateGradient(energies, prng, id) {
+            const color1 = generateColor(energies[0], prng);
+            const color2 = generateColor(energies[1], prng);
+            return `
+                <defs>
+                    <linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:${color1};stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:${color2};stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+            `;
+        }
+
+        function generateBackgroundLayer(energies, prng, size = 512) {
+            const pointsCount = prng.nextInt(200, 500);
+            let points = [];
+            let svgElements = '';
+            
+            for (let i = 0; i < pointsCount; i++) {
+                const x = prng.nextFloat(0, size);
+                const y = prng.nextFloat(0, size);
+                const radius = prng.nextFloat(1, 8);
+                const color = generateColor(energies[i % 4], prng, 0.4, true);
+                
+                points.push({ x: Math.round(x), y: Math.round(y), radius: Math.round(radius * 10) / 10 });
+                svgElements += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" />`;
+            }
+            
+            return {
+                svg: svgElements,
+                metadata: {
+                    points: pointsCount,
+                    avgSize: Math.round((points.reduce((sum, p) => sum + p.radius, 0) / points.length) * 10) / 10
+                }
+            };
+        }
+
+        function generateWavesLayer(energies, prng, size = 512) {
+            const wavesCount = prng.nextInt(3, 7);
+            let svgElements = '';
+            const center = size / 2;
+            
+            svgElements += generateGradient(energies, prng, 'waveGradient');
+            
+            for (let i = 0; i < wavesCount; i++) {
+                const amplitude = prng.nextFloat(20, 100);
+                const frequency = prng.nextFloat(0.01, 0.05);
+                const phase = prng.nextFloat(0, Math.PI * 2);
+                const thickness = prng.nextFloat(1, 4);
+                
+                let pathData = `M 0 ${center + amplitude * Math.sin(phase)}`;
+                
+                for (let x = 0; x <= size; x += 2) {
+                    const y = center + amplitude * Math.sin(x * frequency + phase + i);
+                    pathData += ` L ${x} ${y}`;
+                }
+                
+                svgElements += `<path d="${pathData}" stroke="url(#waveGradient)" stroke-width="${thickness}" fill="none" opacity="0.7" />`;
+            }
+            
+            return {
+                svg: svgElements,
+                metadata: {
+                    count: wavesCount,
+                    complexity: Math.round((wavesCount / 7) * 10) / 10
+                }
+            };
+        }
+
+        function generateEmblemLayer(energies, prng, size = 512, style = 'organica') {
+            const center = size / 2;
+            const baseRadius = prng.nextFloat(30, 80);
+            const color = generateColor(energies[3], prng, 0.8);
+            const strokeColor = generateColor(energies[0], prng);
+            
+            let svgElements = '';
+            let metadata = {};
+            
+            if (style === 'organica') {
+                const points = (energies[0] % 8) + 4;
+                const variation = 0.3 + (energies[1] / 5) * 0.4;
+                
+                let pathData = '';
+                const angleStep = (2 * Math.PI) / points;
+                const controlPoints = [];
+                
+                for (let i = 0; i < points; i++) {
+                    const angle = i * angleStep;
+                    const radiusVar = baseRadius * (1 + prng.nextFloat(-variation, variation));
+                    const x = center + radiusVar * Math.cos(angle);
+                    const y = center + radiusVar * Math.sin(angle);
+                    controlPoints.push({x, y});
+                }
+                
+                pathData = `M ${controlPoints[0].x} ${controlPoints[0].y}`;
+                
+                for (let i = 0; i < points; i++) {
+                    const current = controlPoints[i];
+                    const next = controlPoints[(i + 1) % points];
+                    const cp1x = current.x + prng.nextFloat(-20, 20);
+                    const cp1y = current.y + prng.nextFloat(-20, 20);
+                    const cp2x = next.x + prng.nextFloat(-20, 20);
+                    const cp2y = next.y + prng.nextFloat(-20, 20);
+                    
+                    pathData += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y}`;
+                }
+                pathData += ' Z';
+                
+                svgElements = `<path d="${pathData}" fill="${color}" stroke="${strokeColor}" stroke-width="2" />`;
+                metadata = { type: 'organic_curve', points, variation: Math.round(variation * 100) / 100, radius: Math.round(baseRadius) };
+                
+            } else {
+                const sides = (energies[0] % 12) + 3;
+                const hasRays = energies[1] > 2;
+                
+                let pathData = '';
+                const angleStep = (2 * Math.PI) / sides;
+                
+                for (let i = 0; i < sides; i++) {
+                    const angle = i * angleStep - Math.PI / 2;
+                    const x = center + baseRadius * Math.cos(angle);
+                    const y = center + baseRadius * Math.sin(angle);
+                    
+                    if (i === 0) {
+                        pathData = `M ${x} ${y}`;
+                    } else {
+                        pathData += ` L ${x} ${y}`;
+                    }
+                }
+                pathData += ' Z';
+                
+                svgElements = `<path d="${pathData}" fill="${color}" stroke="${strokeColor}" stroke-width="2" />`;
+                
+                if (hasRays) {
+                    const rayCount = energies[2] + 3;
+                    const rayLength = baseRadius * 0.6;
+                    const rayAngleStep = (2 * Math.PI) / rayCount;
+                    
+                    for (let i = 0; i < rayCount; i++) {
+                        const angle = i * rayAngleStep;
+                        const x1 = center + (baseRadius + 5) * Math.cos(angle);
+                        const y1 = center + (baseRadius + 5) * Math.sin(angle);
+                        const x2 = center + (baseRadius + rayLength) * Math.cos(angle);
+                        const y2 = center + (baseRadius + rayLength) * Math.sin(angle);
+                        
+                        svgElements += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" />`;
+                    }
+                }
+                
+                metadata = { 
+                    type: hasRays ? 'polygon_with_rays' : 'polygon', 
+                    sides, 
+                    rays: hasRays ? energies[2] + 3 : 0, 
+                    radius: Math.round(baseRadius) 
+                };
+            }
+            
+            return { svg: svgElements, metadata };
+        }
+
+        async function generateSignature() {
+            try {
+                showStatus('Генерация...', 'info');
+                
+                const huid = document.getElementById('huid').value.trim();
+                const ts = parseInt(document.getElementById('timestamp').value);
+                const energies = [
+                    clampEnergy(document.getElementById('energy1').value),
+                    clampEnergy(document.getElementById('energy2').value),
+                    clampEnergy(document.getElementById('energy3').value),
+                    clampEnergy(document.getElementById('energy4').value)
+                ];
+                const context = document.getElementById('context').value.trim();
+                const style = document.getElementById('style').value;
+                
+                if (!huid || !ts || energies.some(isNaN) || !context || !style) {
+                    showStatus('Пожалуйста, заполните все поля', 'error');
+                    return;
+                }
+                
+                const startTime = performance.now();
+                
+                const seedHex = await generateSeed(huid, ts, energies, context, style);
+                
+                const prng = new DeterministicPRNG(seedHex);
+                
+                const backgroundLayer = generateBackgroundLayer(energies, prng);
+                const wavesLayer = generateWavesLayer(energies, prng);
+                const emblemLayer = generateEmblemLayer(energies, prng, 512, style);
+                
+                const svgContent = `
+                    <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                        ${wavesLayer.svg}
+                        ${backgroundLayer.svg}
+                        ${emblemLayer.svg}
+                    </svg>
+                `;
+                
+                document.getElementById('svgContainer').innerHTML = svgContent;
+                
+                const jsonData = {
+                    seedHex: seedHex,
+                    inputs: { huid, ts, energies, context, style },
+                    layers: {
+                        background: backgroundLayer.metadata,
+                        waves: wavesLayer.metadata,
+                        emblem: emblemLayer.metadata
+                    },
+                    metadata: {
+                        generatedAt: new Date().toISOString(),
+                        version: "v11",
+                        generationTime: Math.round(performance.now() - startTime)
+                    }
+                };
+                
+                const canonicalJson = JSON.stringify(canonicalJSON(jsonData));
+                const hashHex = await sha256Hex(canonicalJson);
+                
+                currentSignatureData = {
+                    ...jsonData,
+                    hashHex: hashHex,
+                    svgContent: svgContent
+                };
+                
+                showStatus(`Генерация завершена за ${currentSignatureData.metadata.generationTime}мс`, 'success');
+                
+            } catch (error) {
+                console.error('Ошибка генерации:', error);
+                showStatus('Ошибка генерации: ' + error.message, 'error');
+            }
+        }
+
+        function exportPNG() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error');
+                return;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            const img = new Image();
+            const svgBlob = new Blob([currentSignatureData.svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                
+                const link = document.createElement('a');
+                link.download = `energy-signature-${currentSignatureData.inputs.huid}-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                showStatus('PNG экспортирован', 'success');
+            };
+            
+            img.src = url;
+        }
+
+        function exportSVG() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error');
+                return;
+            }
+            
+            const blob = new Blob([currentSignatureData.svgContent], { type: 'image/svg+xml' });
+            const link = document.createElement('a');
+            link.download = `energy-signature-${currentSignatureData.inputs.huid}-${Date.now()}.svg`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            
+            showStatus('SVG экспортирован', 'success');
+        }
+
+        function exportJSON() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error');
+                return;
+            }
+            
+            const jsonData = {
+                seedHex: currentSignatureData.seedHex,
+                hashHex: currentSignatureData.hashHex,
+                inputs: currentSignatureData.inputs,
+                layers: currentSignatureData.layers,
+                metadata: currentSignatureData.metadata
+            };
+            
+            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.download = `energy-signature-${currentSignatureData.inputs.huid}-${Date.now()}.json`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            
+            showStatus('JSON экспортирован', 'success');
+        }
+
+        async function runTests() {
+            showStatus('Запуск тестов...', 'info');
+            document.getElementById('testResults').textContent = 'Выполнение тестов...';
+            
+            let results = 'РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ:\n\n';
+            
+            results += 'T1 DETERMINISM TEST:\n';
+            const testInputs = {
+                huid: 'TEST-DETERMINISM',
+                ts: 1640995200000,
+                energies: [1, 2, 3, 4],
+                context: 'test',
+                style: 'organica'
+            };
+            
+            const svgHashes = [];
+            for (let i = 0; i < 3; i++) {
+                const seedHex = await generateSeed(testInputs.huid, testInputs.ts, testInputs.energies, testInputs.context, testInputs.style);
+                const prng = new DeterministicPRNG(seedHex);
+                const bg = generateBackgroundLayer(testInputs.energies, prng);
+                const waves = generateWavesLayer(testInputs.energies, prng);
+                const emblem = generateEmblemLayer(testInputs.energies, prng, 512, testInputs.style);
+                const svg = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">${waves.svg}${bg.svg}${emblem.svg}</svg>`;
+                const svgHash = await sha256Hex(svg);
+                svgHashes.push(svgHash);
+            }
+            
+            const t1Pass = svgHashes[0] === svgHashes[1] && svgHashes[1] === svgHashes[2];
+            results += `Результат: ${t1Pass ? 'PASS' : 'FAIL'}\n`;
+            results += `SVG Hash: ${svgHashes[0]}\n\n`;
+            
+            results += 'T2 UNIQUENESS TEST (10 HUID variants):\n';
+            const uniqueHashes = new Set();
+            for (let i = 0; i < 10; i++) {
+                const huid = `TEST-${i}`;
+                const seedHex = await generateSeed(huid, 1640995200000, [1, 2, 3, 4], 'test', 'organica');
+                const jsonData = { seedHex, inputs: { huid, ts: 1640995200000, energies: [1, 2, 3, 4], context: 'test', style: 'organica' } };
+                const canonicalJson = JSON.stringify(canonicalJSON(jsonData));
+                const hashHex = await sha256Hex(canonicalJson);
+                uniqueHashes.add(hashHex);
+            }
+            
+            const t2Pass = uniqueHashes.size === 10;
+            results += `Результат: ${t2Pass ? 'PASS' : 'FAIL'}\n`;
+            results += `Уникальных хешей: ${uniqueHashes.size}/10\n\n`;
+            
+            results += 'T3 STYLES TEST:\n';
+            let t3Pass = true;
+            try {
+                const testData = { huid: 'TEST-STYLE', ts: 1640995200000, energies: [2, 3, 4, 5], context: 'test' };
+                
+                const organicaSeed = await generateSeed(testData.huid, testData.ts, testData.energies, testData.context, 'organica');
+                const organicaPrng = new DeterministicPRNG(organicaSeed);
+                const organicaBg = generateBackgroundLayer(testData.energies, organicaPrng);
+                const organicaWaves = generateWavesLayer(testData.energies, organicaPrng);
+                const organicaEmblem = generateEmblemLayer(testData.energies, organicaPrng, 512, 'organica');
+                const organicaSvg = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">${organicaWaves.svg}${organicaBg.svg}${organicaEmblem.svg}</svg>`;
+                
+                const geometricSeed = await generateSeed(testData.huid, testData.ts, testData.energies, testData.context, 'geometric');
+                const geometricPrng = new DeterministicPRNG(geometricSeed);
+                const geometricBg = generateBackgroundLayer(testData.energies, geometricPrng);
+                const geometricWaves = generateWavesLayer(testData.energies, geometricPrng);
+                const geometricEmblem = generateEmblemLayer(testData.energies, geometricPrng, 512, 'geometric');
+                const geometricSvg = `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">${geometricWaves.svg}${geometricBg.svg}${geometricEmblem.svg}</svg>`;
+                
+                const organicaHash = await sha256Hex(organicaSvg);
+                const geometricHash = await sha256Hex(geometricSvg);
+                
+                t3Pass = organicaHash !== geometricHash;
+                results += `Organica SVG Hash: ${organicaHash.substring(0, 16)}...\n`;
+                results += `Geometric SVG Hash: ${geometricHash.substring(0, 16)}...\n`;
+            } catch (error) {
+                t3Pass = false;
+                results += `Ошибка: ${error.message}\n`;
+            }
+            
+            results += `Результат: ${t3Pass ? 'PASS' : 'FAIL'}\n\n`;
+            
+            const allPass = t1Pass && t2Pass && t3Pass;
+            results += `ОБЩИЙ РЕЗУЛЬТАТ: ${allPass ? 'ALL TESTS PASSED ✅' : 'SOME TESTS FAILED ❌'}`;
+            
+            document.getElementById('testResults').textContent = results;
+            showStatus(allPass ? 'Все тесты пройдены' : 'Некоторые тесты не пройдены', allPass ? 'success' : 'error');
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/json') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        jsonFileContent = JSON.parse(e.target.result);
+                        showStatus(`JSON файл загружен: ${file.name}`, 'success');
+                    } catch (error) {
+                        showStatus('Ошибка чтения JSON файла', 'error');
+                        jsonFileContent = null;
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                showStatus('Пожалуйста, выберите JSON файл', 'error');
+            }
+        }
+
+        async function validateFromJSON() {
+            if (!jsonFileContent) {
+                showStatus('Сначала загрузите JSON файл', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Валидация...', 'info');
+                
+                const { seedHex, hashHex, inputs } = jsonFileContent;
+                const { huid, ts, energies, context, style } = inputs;
+                
+                const recalculatedSeed = await generateSeed(huid, ts, energies, context, style || 'organica');
+                
+                const jsonWithoutHash = { ...jsonFileContent };
+                delete jsonWithoutHash.hashHex;
+                const canonicalJson = JSON.stringify(canonicalJSON(jsonWithoutHash));
+                const recalculatedHash = await sha256Hex(canonicalJson);
+                
+                const seedMatch = seedHex === recalculatedSeed;
+                const hashMatch = hashHex === recalculatedHash;
+                
+                const results = `
+Валидация JSON метаданных:
+
+Исходные данные:
+- HUID: ${huid}
+- Timestamp: ${ts}
+- Energies: [${energies.join(', ')}]
+- Context: ${context}
+- Style: ${style || 'organica'}
+
+Проверка SeedHex:
+- Исходный: ${seedHex}
+- Пересчитанный: ${recalculatedSeed}
+- Совпадает: ${seedMatch ? 'ДА' : 'НЕТ'}
+
+Проверка HashHex:
+- Исходный: ${hashHex}
+- Пересчитанный: ${recalculatedHash}
+- Совпадает: ${hashMatch ? 'ДА' : 'НЕТ'}
+
+Общий результат: ${seedMatch && hashMatch ? 'ВАЛИДАЦИЯ ПРОЙДЕНА' : 'ВАЛИДАЦИЯ НЕ ПРОЙДЕНА'}
+                `;
+                
+                document.getElementById('validationResults').textContent = results;
+                showStatus(seedMatch && hashMatch ? 'Валидация пройдена' : 'Валидация не пройдена',
+                          seedMatch && hashMatch ? 'success' : 'error');
+                
+            } catch (error) {
+                console.error('Ошибка валидации:', error);
+                showStatus('Ошибка валидации: ' + error.message, 'error');
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusElement = document.getElementById('statusInfo');
+            statusElement.textContent = message;
+            statusElement.className = `status-info status-${type}`;
+            statusElement.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function handleHeadlessMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('auto') === '1') {
+                const format = urlParams.get('fmt') || 'json';
+                const size = parseInt(urlParams.get('size')) || 512;
+                
+                document.body.style.display = 'none';
+                
+                setTimeout(async () => {
+                    await generateSignature();
+                    
+                    switch (format) {
+                        case 'png':
+                            exportPNG();
+                            break;
+                        case 'svg':
+                            exportSVG();
+                            break;
+                        case 'json':
+                            if (currentSignatureData) {
+                                document.body.innerHTML = `<pre>${JSON.stringify({
+                                    seedHex: currentSignatureData.seedHex,
+                                    hashHex: currentSignatureData.hashHex,
+                                    inputs: currentSignatureData.inputs,
+                                    layers: currentSignatureData.layers,
+                                    metadata: currentSignatureData.metadata
+                                }, null, 2)}</pre>`;
+                                document.body.style.display = 'block';
+                            }
+                            break;
+                    }
+                }, 100);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTimestamp();
+            handleHeadlessMode();
+        });
+    </script>
+</body>
+</html>
