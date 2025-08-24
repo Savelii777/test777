@@ -1,519 +1,1158 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Генератор Энергоподписей — demo</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Inter,system-ui,Arial,sans-serif;background:#f5f7fa;color:#222;min-height:100vh;padding:20px;line-height:1.6}
-    .container{max-width:1200px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;border:1px solid #e6eaf0;box-shadow:0 2px 10px rgba(0,0,0,.05)}
-    h1{font-size:28px;font-weight:700;color:#1f2a44;margin-bottom:8px}
-    .sub{color:#5f6b7a;margin-bottom:24px}
-    .main{display:grid;grid-template-columns:1fr 1fr;gap:24px}
-    .form{display:flex;flex-direction:column;gap:16px}
-    .group{display:flex;flex-direction:column;gap:8px}
-    label{font-weight:600;color:#2a3b55}
-    input,select{border:1px solid #d6dde7;border-radius:8px;padding:10px 12px;font-size:14px}
-    .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-    .btn{appearance:none;border:none;border-radius:10px;background:#3a7afe;color:#fff;padding:12px 16px;font-weight:600;cursor:pointer}
-    .btn:hover{filter:brightness(.95)}
-    .btn.secondary{background:#95a5a6}
-    .btn.success{background:#27ae60}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    #canvas{width:512px;height:512px;display:flex;align-items:center;justify-content:center;border:2px solid #ecf0f1;border-radius:12px;background:#fff}
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;font-size:13px;white-space:pre-wrap}
-    .panel{padding:12px;border:1px solid #e6eaf0;border-radius:10px;background:#f9fbff}
-    .ok{background:#e8f7ee;border-color:#b7e3c4;color:#1e7e34}
-    .err{background:#feefef;border-color:#ffc4c4;color:#c0392b}
-    .inf{background:#e9f3ff;border-color:#cfe2ff;color:#2255b5}
-    @media(max-width:900px){.main{grid-template-columns:1fr} #canvas{width:100%;height:auto;aspect-ratio:1/1}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Signature Generator v11</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        :root {
+            --bg-primary: #0d1017;
+            --bg-secondary: #1a1f2e;
+            --bg-card: #252b3d;
+            --accent: #00d4ff;
+            --accent-glow: rgba(0, 212, 255, 0.3);
+            --text-primary: #e8eaed;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --border: #374151;
+            --border-focus: #00d4ff;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--gradient);
+            opacity: 0.6;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+            background: var(--gradient);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            position: relative;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 2px;
+            background: var(--accent);
+            border-radius: 1px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            background: var(--bg-secondary);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-group input, .form-group select {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+        
+        .form-group input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .energies-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .energy-input {
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .energy-input input {
+            text-align: center;
+            font-weight: 600;
+            color: var(--accent) !important;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+            width: 100%;
+            height: 20px;
+            margin: 8px 0;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+            background: var(--bg-primary);
+            height: 6px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg-card);
+            box-shadow: 0 2px 6px rgba(0, 212, 255, 0.3);
+            margin-top: -8px;
+            transition: all 0.2s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.5);
+        }
+        
+        input[type="range"]::-moz-range-track {
+            background: var(--bg-primary);
+            height: 6px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--bg-card);
+            box-shadow: 0 2px 6px rgba(0, 212, 255, 0.3);
+            cursor: pointer;
+            border: none;
+        }
+        
+        .form-group label span {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: monospace;
+            background: var(--bg-primary);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            float: right;
+        }
+        
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .button:hover::before {
+            left: 100%;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--accent-glow);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .button-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .button-secondary:hover {
+            background: var(--border);
+            border-color: var(--text-secondary);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .button-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .button-success:hover {
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        
+        .section-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-header::before {
+            content: '';
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+        
+        .visualization-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--bg-secondary);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        #svgContainer {
+            width: 512px;
+            height: 512px;
+            border-radius: 12px;
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #svgContainer svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .placeholder-text {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .test-section, .validator-section {
+            margin-top: 32px;
+            padding: 24px;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .test-section h3, .validator-section h3 {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .file-input {
+            margin: 16px 0;
+        }
+        
+        .file-input input[type="file"] {
+            display: none;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .file-input-label:hover {
+            background: var(--border);
+            border-color: var(--accent);
+        }
+        
+        #testResults, #validationResults {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-family: 'JetBrains Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+        
+        .status-info {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .status-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+        
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+        
+        .status-info {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        #calligraphicParams {
+            display: none;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            .container { padding: 24px; }
+            h1 { font-size: 2.2rem; }
+            .export-buttons { grid-template-columns: 1fr; gap: 12px; }
+            #svgContainer { width: 100%; max-width: 480px; height: auto; aspect-ratio: 1 / 1; }
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .container { padding: 20px; }
+            h1 { font-size: 1.8rem; }
+            .energies-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-  <h1>Генератор Энергоподписей <span style="font-weight:400">/ demo</span></h1>
-  <div class="sub">Ветка рендера по стилю: <b>organica</b> (плавные кривые) и <b>geometric</b> (полигоны/суперэллипс + лучи). Канонический JSON (рекурсивная сортировка) и корректные тесты T1–T3.</div>
+    <div class="container">
+        <h1>Генератор Энергоподписей v11</h1>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <div class="form-group">
+                    <label for="huid">HUID (Уникальный идентификатор):</label>
+                    <input type="text" id="huid" placeholder="Введите HUID" value="H-DEMO-001">
+                </div>
+                
+                <div class="form-group">
+                    <label for="timestamp">Timestamp (UTC ms):</label>
+                    <input type="number" id="timestamp" placeholder="Временная метка">
+                </div>
+                
+                <div class="form-group">
+                    <label>Энергии [P, I, E, C] (0-5):</label>
+                    <div class="energies-grid">
+                        <div class="energy-input"><input type="number" id="energy1" placeholder="P" value="2" min="0" max="5" step="1"></div>
+                        <div class="energy-input"><input type="number" id="energy2" placeholder="I" value="3" min="0" max="5" step="1"></div>
+                        <div class="energy-input"><input type="number" id="energy3" placeholder="E" value="2" min="0" max="5" step="1"></div>
+                        <div class="energy-input"><input type="number" id="energy4" placeholder="C" value="4" min="0" max="5" step="1"></div>
+                    </div>
+                </div>
+                
+                <div class="section-header">Визуальные параметры</div>
+                
+                <div class="form-group">
+                    <label for="style">Стиль:</label>
+                    <select id="style">
+                        <option value="organica">Organica</option>
+                        <option value="geometric">Geometric</option>
+                        <option value="calligraphic">Calligraphic</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="context">Контекст:</label>
+                    <input type="text" id="context" placeholder="Контекстная информация" value="demo_v11">
+                </div>
+                
+                <div class="section-header">Тонкие настройки</div>
+                
+                <div class="form-group">
+                    <label>Масштаб линий: <span id="lineScaleValue">1.0</span></label>
+                    <input type="range" id="lineScale" min="0.5" max="3" step="0.1" value="1.0">
+                </div>
+                
+                <div class="form-group">
+                    <label>Интенсивность волн: <span id="wavesIntensityValue">1.0</span></label>
+                    <input type="range" id="wavesIntensity" min="0.2" max="2" step="0.1" value="1.0">
+                </div>
+                
+                <div class="form-group">
+                    <label>Плотность точек: <span id="pointsDensityValue">1.0</span></label>
+                    <input type="range" id="pointsDensity" min="0.3" max="2" step="0.1" value="1.0">
+                </div>
+                
+                <div class="form-group">
+                    <label>Уровень лучей (для Geometric): <span id="raysLevelValue">50</span></label>
+                    <input type="range" id="raysLevel" min="0" max="100" step="1" value="50">
+                </div>
 
-  <div class="main">
-    <div class="form">
-      <div class="group">
-        <label for="huid">HUID</label>
-        <input id="huid" value="user_12345">
-      </div>
-      <div class="group">
-        <label for="timestamp">Timestamp (UTC ms)</label>
-        <input id="timestamp" type="number">
-      </div>
-      <div class="group">
-        <label>Энергии [P, I, E, C] (0–5)</label>
-        <div class="grid4">
-          <input id="e0" type="number" min="0" max="5" step="1" value="3" placeholder="P">
-          <input id="e1" type="number" min="0" max="5" step="1" value="4" placeholder="I">
-          <input id="e2" type="number" min="0" max="5" step="1" value="2" placeholder="E">
-          <input id="e3" type="number" min="0" max="5" step="1" value="5" placeholder="C">
+                <div id="calligraphicParams">
+                    <div class="form-group">
+                        <label>Множитель пера (Calligraphic): <span id="penMulValue">1.4</span></label>
+                        <input type="range" id="penMul" min="0.5" max="3" step="0.1" value="1.4">
+                    </div>
+                     <div class="form-group">
+                        <label>Сглаживание (Calligraphic): <span id="penSmoothValue">2</span></label>
+                        <input type="range" id="penSmooth" min="0" max="3" step="1" value="2">
+                    </div>
+                </div>
+                
+                <button class="button" id="generateButton">Генерировать Подпись</button>
+                
+                <div class="export-buttons">
+                    <button class="button button-secondary" id="exportPNGButton">PNG</button>
+                    <button class="button button-secondary" id="exportSVGButton">SVG</button>
+                    <button class="button button-success" id="exportJSONButton">JSON</button>
+                </div>
+            </div>
+            
+            <div class="visualization-section">
+                <div class="section-header">Предварительный просмотр</div>
+                <div id="svgContainer">
+                    <div class="placeholder-text">
+                        Генерируйте энергоподпись
+                    </div>
+                </div>
+                
+                <div id="statusInfo" class="status-info" style="display: none;"></div>
+                
+                <div id="metadataContainer" style="display: none; width: 100%; margin-top: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-family: monospace; font-size: 0.8rem;">
+                        <div>
+                            <div style="color: var(--text-secondary); margin-bottom: 4px;">Seed Hash:</div>
+                            <div id="seedDisplay" style="color: var(--accent); word-break: break-all;"></div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-secondary); margin-bottom: 4px;">Content Hash:</div>
+                            <div id="hashDisplay" style="color: var(--success); word-break: break-all;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="group">
-        <label for="style">Стиль</label>
-        <select id="style">
-          <option value="organica">organica</option>
-          <option value="geometric">geometric</option>
-        </select>
-      </div>
-      <div class="group">
-        <label for="context">Контекст</label>
-        <input id="context" value="test_context">
-      </div>
-      <div class="row">
-        <button class="btn" onclick="generate()">Сгенерировать</button>
-        <button class="btn secondary" onclick="exportSVG()">Экспорт SVG</button>
-        <button class="btn secondary" onclick="exportPNG()">Экспорт PNG</button>
-        <button class="btn success" onclick="exportJSON()">Экспорт JSON</button>
-      </div>
-
-      <div class="panel" id="status" style="display:none"></div>
-
-      <div class="group">
-        <h3 style="margin-top:8px;margin-bottom:6px">Тесты</h3>
-        <div class="row">
-          <button class="btn secondary" onclick="runTests()">Запустить T1–T3</button>
+        
+        <div class="test-section">
+            <h3>Тестирование системы</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">Проверка детерминированности, уникальности и рендеринга стилей:</p>
+             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--accent);">T1:</strong> Детерминизм<br>
+                    <small style="color: var(--text-muted);">3 одинаковых входа → 3 одинаковых SVG-хэша</small>
+                </div>
+                <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--success);">T2:</strong> Уникальность<br>
+                    <small style="color: var(--text-muted);">200 разных HUID → 200 уникальных контент-хэшей</small>
+                </div>
+                <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                    <strong style="color: var(--warning);">T3:</strong> Стили<br>
+                    <small style="color: var(--text-muted);">Разные стили → разные SVG-хэши</small>
+                </div>
+            </div>
+            <button class="button button-secondary" id="runTestsButton">Запустить все тесты</button>
+            <div id="testResults">...Ожидание запуска тестов...</div>
         </div>
-        <div id="tests" class="mono panel" style="margin-top:8px;max-height:220px;overflow:auto"></div>
-      </div>
-
-      <div class="group">
-        <h3 style="margin-top:8px;margin-bottom:6px">Валидатор JSON</h3>
-        <input type="file" id="jsonFile" accept=".json">
-        <div class="row">
-          <button class="btn success" onclick="validateFromFile()">Валидировать</button>
+        
+        <div class="validator-section">
+            <h3>Валидатор метаданных</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px;">Проверка целостности экспортированных JSON файлов:</p>
+            <div class="file-input">
+                <label for="jsonFile" class="file-input-label">Выберите JSON файл</label>
+                <input type="file" id="jsonFile" accept=".json">
+            </div>
+            <button class="button button-success" id="validateJSONButton">Валидировать файл</button>
+            <div id="validationResults">...Ожидание файла для валидации...</div>
         </div>
-        <div id="validation" class="mono panel" style="margin-top:8px"></div>
-      </div>
     </div>
 
-    <div>
-      <div id="canvas">
-        <div style="color:#97a3b6">SVG 512×512 появится здесь</div>
-      </div>
-    </div>
-  </div>
-</div>
+    <script>
+        let currentSignatureData = null;
+        let jsonFileContent = null;
+    
+        const $ = (id) => document.getElementById(id);
 
-<script>
-// ---------- утилиты ----------
-const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
-const sha256Hex = async (s) => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
-const u32 = (h,o) => parseInt(h.slice(o,o+8),16)>>>0;
-const clampE = v => Math.max(0, Math.min(5, parseInt(v)||0));
+        const palettes = {
+            gold: { main: '#d4af37', pale: 'rgba(185, 205, 191, 0.6)', bg: '#0d1017' },
+            fire: { main: '#ff6e40', pale: 'rgba(255, 220, 180, 0.6)', bg: '#1f0a08' },
+            water: { main: '#40c4ff', pale: 'rgba(200, 230, 255, 0.6)', bg: '#081221' },
+            neon: { main: '#00e5ff', pale: 'rgba(224, 247, 250, 0.6)', bg: '#0d0d0d' }
+        };
 
-// sfc32 PRNG
-const sfc32 = (a,b,c,d)=>function(){a|=0;b|=0;c|=0;d|=0;let t=(a+b|0)+d|0;d=d+1|0;a=b^(b>>>9);b=c+(c<<3)|0;c=(c<<21)|(c>>>11);c=c+t|0;return (t>>>0)/4294967296;};
+        const _enc = (typeof TextEncoder !== 'undefined') ? new TextEncoder() : { encode: s => new Uint8Array([...unescape(encodeURIComponent(s))].map(c => c.charCodeAt(0))) };
+        const _hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+        async function sha256Hex(s) {
+            try {
+                if (crypto?.subtle?.digest) return _hex(await crypto.subtle.digest('SHA-256', _enc.encode(s)));
+            } catch (_) {}
+            let h1 = 0x811c9dc5 >>> 0, h2 = 0x01000193 >>> 0;
+            for (let i = 0; i < s.length; i++) {
+                const ch = s.charCodeAt(i);
+                h1 ^= ch;
+                h1 = Math.imul(h1, 0x01000193) >>> 0;
+                h2 ^= (h1 >>> 13);
+                h2 = Math.imul(h2, 0x85ebca6b) >>> 0;
+            }
+            return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).repeat(4);
+        }
 
-class PRNG{
-  constructor(seedHex){ this.rng = sfc32(u32(seedHex,0),u32(seedHex,8),u32(seedHex,16),u32(seedHex,24)); }
-  next(){ return this.rng(); }
-  int(min,max){ return Math.floor(this.next()*(max-min+1))+min; }
-  float(min,max){ return this.next()*(max-min)+min; }
-}
+        const V11 = 'v11';
+        function makeSeedString({ huid, ts, energies, context, style }) {
+            if (!new RegExp('^[A-Za-z0-9._-]{3,64}$').test(huid || '')) throw new Error('HUID_INVALID');
+            const eCSV = Array.isArray(energies) ? energies.join(',') : String(energies);
+            return `${huid}|${ts}|${eCSV}|${context}|${style}|${V11}`;
+        }
+        const _u32 = (h, o) => parseInt(h.slice(o, o + 8), 16) >>> 0;
+        const _sfc32 = (a, b, c, d) => () => { a |= 0; b |= 0; c |= 0; d |= 0; let t = (a + b | 0) + d | 0; d = d + 1 | 0; a = b ^ (b >>> 9); b = c + (c << 3) | 0; c = (c << 21) | (c >>> 11); c = c + t | 0; return (t >>> 0) / 4294967296 };
+        function prngFromSeedHex(seedHex) { return _sfc32(_u32(seedHex, 0), _u32(seedHex, 8), _u32(seedHex, 16), _u32(seedHex, 24)); }
 
-// deep canonical JSON
-function canonicalizeDeep(value){
-  if (Array.isArray(value)) return value.map(canonicalizeDeep);
-  if (value && typeof value==='object'){
-    const out = {};
-    Object.keys(value).sort().forEach(k => { out[k] = canonicalizeDeep(value[k]); });
-    return out;
-  }
-  return value;
-}
-function canonicalStringifyDeep(obj){ return JSON.stringify(canonicalizeDeep(obj)); }
+        async function buildSeed(params) {
+            const seedString = makeSeedString(params);
+            const seedHex = await sha256Hex(seedString);
+            const rnd = prngFromSeedHex(seedHex);
+            return { seedString, seedHex, rnd };
+        }
 
-// цветоведение (сдержанные тона)
-function hsla(h,s,l,a=1){ s=Math.max(0,Math.min(100,s)); l=Math.max(0,Math.min(100,l)); return `hsla(${Math.round(h)%360}, ${s}%, ${l}%, ${a})`; }
-function colorFromEnergy(e, prng, opts={}){
-  // базовый тон — избегаем "конфетности": ограничим сатурацию и светлоту
-  const hue = (e*137.5 + prng.float(-10,10))%360;
-  const s = Math.min(60, 40 + prng.float(0,20)); // <=60%
-  const l = Math.min(65, 35 + prng.float(0,25)); // умеренно
-  const a = opts.alpha ?? 1;
-  return hsla(hue, s, l, a);
-}
-function subtleDotColor(e, prng, a=0.3){
-  const hue = (e*137.5 + prng.float(-15,15))%360;
-  const s = 10 + prng.float(0,15); // низкая насыщенность
-  const l = 55 + prng.float(0,10);
-  return hsla(hue, s, l, a);
-}
+        const TAU = Math.PI * 2;
+        const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const polar = (cx, cy, r, ang) => ({ x: cx + r * Math.cos(ang), y: cy + r * Math.sin(ang) });
+        function chaikin(points, iters = 1) {
+            if (iters === 0) return points;
+            let pts = points.slice();
+            for (let k = 0; k < iters; k++) {
+                const out = [];
+                if (pts.length < 2) return pts;
+                for (let i = 0; i < pts.length - 1; i++) {
+                    const p = pts[i], q = pts[i + 1];
+                    out.push({ x: lerp(p.x, q.x, 0.25), y: lerp(p.y, q.y, 0.25) });
+                    out.push({ x: lerp(p.x, q.x, 0.75), y: lerp(p.y, q.y, 0.75) });
+                }
+                pts = out;
+            }
+            return pts;
+        }
+        function catmullRomPath(pts, closed = true) {
+            const P = pts.slice();
+            if (P.length < 2) return '';
+            if (closed) { P.unshift(pts[pts.length - 1]); P.push(pts[0], pts[1]); }
+            const q = n => Number(n.toFixed(2));
+            let d = `M ${q(P[closed ? 1 : 0].x)} ${q(P[closed ? 1 : 0].y)}`;
+            for (let i = 1; i < P.length - 2; i++) {
+                const p0 = P[i - 1], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2];
+                const cp1 = { x: q(p1.x + (p2.x - p0.x) / 6), y: q(p1.y + (p2.y - p0.y) / 6) };
+                const cp2 = { x: q(p2.x - (p3.x - p1.x) / 6), y: q(p2.y - (p3.y - p1.y) / 6) };
+                d += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${q(p2.x)} ${q(p2.y)}`;
+            }
+            return d + (closed ? ' Z' : '');
+        }
 
-async function makeSeed(huid, ts, energies, context, style){
-  const seedString = `${huid}|${ts}|${energies.join(',')}|${context}|${style}|v12`;
-  return await sha256Hex(seedString);
-}
+        function genOrganica({ cx = 256, cy = 256, rnd, energies: [P, I, E, C], lineScale = 1.0 }) {
+            const R0 = 110 + I * 4;
+            const a1 = 0.15 + E * 0.03;
+            const a2 = 0.10 + C * 0.02;
+            const k1 = 3 + Math.floor(rnd() * 3 + P * 0.2);
+            const k2 = 5 + Math.floor(rnd() * 4 + P * 0.1);
+            const p1 = rnd() * TAU, p2 = rnd() * TAU;
+            const M = 96 + P * 8;
+            const pts = [];
+            for (let i = 0; i < M; i++) {
+                const th = i / M * TAU;
+                const r = R0 * (1 + a1 * Math.sin(k1 * th + p1) + a2 * Math.sin(k2 * th + p2));
+                pts.push(polar(cx, cy, r, th));
+            }
+            const smooth = catmullRomPath(pts, true);
+            const coreR = 28 + ((P + I + E + C) / 4) * 3 * lineScale;
+            return { type: 'organica', path: smooth, core: { cx, cy, r: Number(coreR.toFixed(2)) } };
+        }
 
-// ---------- слои ----------
+        function genGeometric({ cx = 256, cy = 256, rnd, energies: [P, I, E, C], raysLevel = 0, lineScale = 1.0 }) {
+            const n = clamp(2.0 - P * 0.2 + rnd() * 0.5, 0.6, 3.0);
+            const R = 120 + I * 3;
+            const k = 3 + Math.floor(C * 1.2 + rnd() * 3);
+            const mA = 0.12 + E * 0.03;
+            const M = 2 * k * 24;
+            const rot = rnd() * TAU;
+            const pts = [];
+            for (let i = 0; i < M; i++) {
+                const th = i / M * TAU + rot;
+                const base = 1 / Math.sqrt(Math.pow(Math.abs(Math.cos(th)), 2 / n) + Math.pow(Math.abs(Math.sin(th)), 2 / n));
+                const mod = 1 + mA * Math.cos(k * th);
+                const r = R * base * mod;
+                pts.push(polar(cx, cy, r, th));
+            }
+            let rays = null;
+            if (raysLevel > 0) {
+                const count = Math.round((24 + 6 * C) * (clamp(raysLevel, 0, 100) / 100));
+                const r1 = 40 + I * 6, r2 = 200 + P * 10;
+                const step = TAU / count;
+                const items = [];
+                for (let i = 0; i < count; i++) {
+                    const a = i * step + rot * 0.5;
+                    items.push({ x1: cx + Math.cos(a) * r1, y1: cy + Math.sin(a) * r1, x2: cx + Math.cos(a) * r2, y2: cy + Math.sin(a) * r2 });
+                }
+                rays = { count, r1, r2, items };
+            }
+            const coreR = 28 + ((P + I + E + C) / 4) * 3 * lineScale;
+            return { type: 'geometric', path: catmullRomPath(pts, true), rays, core: { cx, cy, r: Number(coreR.toFixed(2)) } };
+        }
 
-// 1) поле/волны (разные для стилей)
-function layerField(energies, prng, style, size=512){
-  const defsId = 'grad'+Math.floor(prng.float(1,1e9));
-  const c1 = colorFromEnergy(energies[1], prng);
-  const c2 = colorFromEnergy(energies[2], prng);
-  let svg = `
-    <defs>
-      <linearGradient id="${defsId}" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" style="stop-color:${c1};stop-opacity:1"/>
-        <stop offset="100%" style="stop-color:${c2};stop-opacity:1"/>
-      </linearGradient>
-    </defs>`;
-  const cx=size/2, cy=size/2;
+        function genCalligraphic({ cx = 256, cy = 256, rnd, energies: [P, I, E, C], penMul = 1.4, penSmooth = 2, lineScale = 1.0 }) {
+            const R0 = 105 + I * 5;
+            const a1 = 0.14 + E * 0.02, a2 = 0.10 + C * 0.02;
+            const k1 = 2 + Math.floor(rnd() * 3), k2 = 5 + Math.floor(rnd() * 3);
+            const p1 = rnd() * TAU, p2 = rnd() * TAU;
+            const N = 80 + P * 10;
+            const ctr = [];
+            for (let i = 0; i < N; i++) {
+                const t = i / (N - 1);
+                const th = t * TAU;
+                const r = R0 * (1 + a1 * Math.sin(k1 * th + p1) + a2 * Math.sin(k2 * th + p2));
+                ctr.push(polar(cx, cy, r, th));
+            }
+            const base = (2.0 + E * 0.8) * penMul * lineScale;
+            const varA = 0.6 + C * 0.25;
+            const varK = 3 + Math.floor(rnd() * 4);
+            const left = [], right = [];
+            for (let i = 0; i < ctr.length; i++) {
+                const p = ctr[i];
+                const q = ctr[(i + 1) % ctr.length];
+                const dx = (q.x - p.x), dy = (q.y - p.y);
+                const len = Math.max(1e-6, Math.hypot(dx, dy));
+                const nx = -dy / len, ny = dx / len;
+                const t = i / (ctr.length - 1);
+                const w = base * (1 + varA * Math.sin(varK * t * TAU));
+                left.push({ x: p.x + nx * w, y: p.y + ny * w });
+                right.push({ x: p.x - nx * w, y: p.y - ny * w });
+            }
+            let ribbon = left.concat(right.reverse());
+            if (penSmooth > 0) ribbon = chaikin(ribbon, clamp(penSmooth | 0, 0, 3));
+            const q = n => Number(n.toFixed(2));
+            let d = `M ${q(ribbon[0].x)} ${q(ribbon[0].y)}`;
+            for (let i = 1; i < ribbon.length; i++) { d += ` L ${q(ribbon[i].x)} ${q(ribbon[i].y)}`; }
+            d += ' Z';
+            const coreR = 26 + ((P + I + E + C) / 4) * 2.5;
+            return { type: 'calligraphic', path: d, core: { cx, cy, r: Number(coreR.toFixed(2)) } };
+        }
+        
+        function generateBackgroundLayer(rnd, palette, { size, density }) {
+            const pointsCount = 150 * density;
+            let svg = `<rect width="${size}" height="${size}" fill="${palette.bg}" />`;
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('opacity', '0.4');
 
-  if (style==='organica'){
-    // плавные синусные/катмулл-ром кривые
-    const count = prng.int(3,6);
-    for (let i=0;i<count;i++){
-      const amp = prng.float(18,90);
-      const freq = prng.float(0.012,0.05);
-      const phase = prng.float(0,Math.PI*2);
-      const thick = prng.float(1,3);
-      let d = `M 0 ${cy + amp*Math.sin(phase)}`;
-      for (let x=0;x<=size;x+=2){
-        const y = cy + amp*Math.sin(x*freq + phase + i*0.6);
-        d += ` L ${x} ${y}`;
-      }
-      svg += `<path d="${d}" stroke="url(#${defsId})" stroke-width="${thick}" fill="none" opacity="0.7"/>`;
-    }
-  }else{
-    // geometric: концентрические многоугольники
-    const rings = prng.int(3,6);
-    const sides = (Math.floor(energies[0])%8)+4;
-    for (let r=0;r<rings;r++){
-      const rad = 80 + r*35 + prng.float(-8,8);
-      const thick = prng.float(0.8,2.2);
-      let d="";
-      for (let i=0;i<sides;i++){
-        const a = (i/sides)*Math.PI*2 - Math.PI/2;
-        const x = cx + rad*Math.cos(a);
-        const y = cy + rad*Math.sin(a);
-        d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`);
-      }
-      d += " Z";
-      svg += `<path d="${d}" fill="none" stroke="url(#${defsId})" stroke-width="${thick}" opacity="0.7"/>`;
-    }
-  }
-  return {svg, meta:{type:style==='organica'?'waves':'rings'}};
-}
+            for (let i = 0; i < pointsCount; i++) {
+                const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                c.setAttribute('cx', (rnd() * size).toFixed(2));
+                c.setAttribute('cy', (rnd() * size).toFixed(2));
+                c.setAttribute('r', (rnd() * 1.5 + 0.4).toFixed(2));
+                c.setAttribute('fill', palette.pale);
+                c.setAttribute('fill-opacity', (rnd() * 0.5 + 0.2).toFixed(2));
+                g.appendChild(c);
+            }
+            return svg + g.outerHTML;
+        }
 
-// 2) центральная эмблема (реальное ветвление стилей)
-function superformulaPoint(a,b,m,n1,n2,n3,phi){
-  // r = (|cos(m*phi/4)/a|^n2 + |sin(m*phi/4)/b|^n3)^(-1/n1)
-  const t1 = Math.pow(Math.abs(Math.cos(m*phi/4)/a), n2);
-  const t2 = Math.pow(Math.abs(Math.sin(m*phi/4)/b), n3);
-  const r = Math.pow(t1+t2, -1/Math.max(0.0001,n1));
-  return {r};
-}
-function organicaGlyph(energies, prng, size=512){
-  const cx=size/2, cy=size/2;
-  // параметры суперформулы из энергий + PRNG
-  const a=1, b=1;
-  const m = prng.int(4,12) + energies[0];
-  const n1 = 0.2 + (energies[1]*0.35) + prng.float(0,0.6);
-  const n2 = 0.2 + (energies[2]*0.4)  + prng.float(0,0.6);
-  const n3 = 0.2 + (energies[3]*0.4)  + prng.float(0,0.6);
-  const R = prng.float(70,110);
-  const steps = 360;
-  let d="";
-  for (let i=0;i<=steps;i++){
-    const phi = (i/steps)*Math.PI*2;
-    const {r} = superformulaPoint(a,b,m,n1,n2,n3,phi);
-    const x = cx + R*r*Math.cos(phi);
-    const y = cy + R*r*Math.sin(phi);
-    d += (i===0?`M ${x} ${y}`:` L ${x} ${y}`);
-  }
-  const fill = colorFromEnergy(energies[3], prng, {alpha:0.85});
-  const stroke = colorFromEnergy(energies[0], prng);
-  const path = `<path d="${d} Z" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
-  return {svg:path, meta:{style:'organica', m, n1:+n1.toFixed(2), n2:+n2.toFixed(2), n3:+n3.toFixed(2), radius:Math.round(R)}};
-}
+        function generateWavesLayer(rnd, palette, { size, intensity }) {
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('fill', 'none');
+            g.setAttribute('stroke', palette.pale);
+            g.setAttribute('stroke-opacity', (0.2 * intensity).toFixed(2));
 
-function superellipsePoint(a,b,n,t){
-  const ct = Math.cos(t), st = Math.sin(t);
-  const x = Math.sign(ct) * Math.pow(Math.abs(ct), 2/n) * a;
-  const y = Math.sign(st) * Math.pow(Math.abs(st), 2/n) * b;
-  return {x,y};
-}
-function geometricGlyph(energies, prng, size=512){
-  const cx=size/2, cy=size/2;
-  const a = prng.float(60,100);
-  const b = prng.float(60,100);
-  const n = 2 + energies[0] + prng.float(0,1.5); // степень суперэллипса
-  const steps = 180;
-  let d="";
-  for (let i=0;i<=steps;i++){
-    const t = (i/steps)*Math.PI*2;
-    const {x,y} = superellipsePoint(a,b,n,t);
-    d += (i===0?`M ${cx+x} ${cy+y}`:` L ${cx+x} ${cy+y}`);
-  }
-  d += " Z";
+            const rings = 3 + Math.floor(rnd() * 5 * intensity);
+            for (let i = 0; i < rings; i++) {
+                const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                c.setAttribute('cx', size / 2);
+                c.setAttribute('cy', size / 2);
+                c.setAttribute('r', (size * 0.1 + i * size * 0.08 + rnd() * 10).toFixed(2));
+                c.setAttribute('stroke-width', (rnd() * 1.2 + 0.5).toFixed(2));
+                g.appendChild(c);
+            }
+            return g.outerHTML;
+        }
 
-  // лучи
-  const rays = (energies[2] % 5) + 6 + prng.int(0,4);
-  let raysSvg = "";
-  for (let i=0;i<rays;i++){
-    const ang = (i/rays)*Math.PI*2 + prng.float(-0.05,0.05);
-    const r1 = prng.float(20,40);
-    const r2 = prng.float(110,150);
-    const x1 = cx + r1*Math.cos(ang);
-    const y1 = cy + r1*Math.sin(ang);
-    const x2 = cx + r2*Math.cos(ang);
-    const y2 = cy + r2*Math.sin(ang);
-    raysSvg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${colorFromEnergy(energies[1], prng)}" stroke-width="${prng.float(0.7,1.8)}" opacity="0.6"/>`
-  }
+        function generateSpiralLayer(rnd, palette, { size, intensity }) {
+             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('fill', 'none');
+            g.setAttribute('stroke', palette.pale);
+            
+            const spiralTurns = (1 + rnd() * 4) * intensity;
+            if (spiralTurns < 0.5) return '';
 
-  const fill = colorFromEnergy(energies[3], prng, {alpha:0.8});
-  const stroke = colorFromEnergy(energies[0], prng);
-  const path = `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
-  return {svg:raysSvg + path, meta:{style:'geometric', a:Math.round(a), b:Math.round(b), n:+n.toFixed(2), rays}};
-}
+            let dSp = '';
+            const steps = 200;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const ang = t * TAU * spiralTurns;
+                const rad = size * 0.05 + t * size * 0.4;
+                const x = (size / 2 + Math.cos(ang) * rad).toFixed(2);
+                const y = (size / 2 + Math.sin(ang) * rad).toFixed(2);
+                dSp += (i ? ' L' : 'M') + x + ',' + y;
+            }
+            const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            p.setAttribute('d', dSp);
+            p.setAttribute('stroke-width', (rnd() * 1.0 + 0.6).toFixed(2));
+            p.setAttribute('stroke-opacity', (0.3 * intensity).toFixed(2));
+            g.appendChild(p);
+            return g.outerHTML;
+        }
 
-function layerGlyph(energies, prng, style, size=512){
-  return (style==='organica') ? organicaGlyph(energies, prng, size)
-                              : geometricGlyph(energies, prng, size);
-}
+        function buildSvgContent({ background, waves, spiral, emblem, size, palette, lineScale }) {
+            const mainPathFill = emblem.type === 'calligraphic' ? palette.main : 'none';
+            const mainPathStroke = palette.main;
 
-// 3) защитные точки (ТРЕТИЙ слой сверху, приглушённые)
-function layerDefensiveDots(energies, prng, size=512){
-  const count = prng.int(180,400);
-  let svg="";
-  let sumR=0;
-  for (let i=0;i<count;i++){
-    const x = prng.float(8,size-8);
-    const y = prng.float(8,size-8);
-    const r = prng.float(0.8,3.2);
-    sumR += r;
-    const c = subtleDotColor(energies[i%4], prng, 0.28);
-    svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" />`;
-  }
-  return {svg, meta:{points:count, avgSize:+(sumR/count).toFixed(2)}};
-}
+            let raysSvg = '';
+            if (emblem.rays && emblem.rays.items) {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('stroke', palette.pale);
+                g.setAttribute('stroke-opacity', '0.35');
+                emblem.rays.items.forEach(r => {
+                    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    l.setAttribute('x1', r.x1.toFixed(2)); l.setAttribute('y1', r.y1.toFixed(2));
+                    l.setAttribute('x2', r.x2.toFixed(2)); l.setAttribute('y2', r.y2.toFixed(2));
+                    l.setAttribute('stroke-width', (0.6 * lineScale).toFixed(2));
+                    g.appendChild(l);
+                });
+                raysSvg = g.outerHTML;
+            }
 
-// полный SVG
-function buildSVG(layersSvg){
-  return `<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">${layersSvg}</svg>`;
-}
+            return `
+                <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                    </defs>
+                    ${background}
+                    ${waves}
+                    ${spiral}
+                    ${raysSvg}
+                    <g filter="url(#softGlow)">
+                        <path d="${emblem.path}" fill="${mainPathFill}" stroke="${mainPathStroke}" stroke-width="${(2.2 * lineScale).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>
+                        ${emblem.core ? `<circle cx="${emblem.core.cx}" cy="${emblem.core.cy}" r="${emblem.core.r}" fill="none" stroke="${mainPathStroke}" stroke-width="${(1.2 * lineScale).toFixed(2)}" />` : ''}
+                    </g>
+                </svg>`;
+        }
+        
+        async function generateSignature(inputs) {
+            const params = { ...inputs };
+            const { seedHex, rnd } = await buildSeed(params);
+            
+            const size = 512;
+            const palette = palettes.gold;
 
-// ---------- основная генерация ----------
-let current = null;
+            const backgroundLayer = generateBackgroundLayer(rnd, palette, { size, density: params.pointsDensity });
+            const wavesLayer = generateWavesLayer(rnd, palette, { size, intensity: params.wavesIntensity });
+            const spiralLayer = generateSpiralLayer(rnd, palette, { size, intensity: params.wavesIntensity });
 
-async function generate(){
-  const huid = document.getElementById('huid').value.trim();
-  const ts = parseInt(document.getElementById('timestamp').value || Date.now());
-  const energies = [clampE(e0.value), clampE(e1.value), clampE(e2.value), clampE(e3.value)];
-  const context = document.getElementById('context').value.trim();
-  const style = document.getElementById('style').value;
+            let emblemData;
+            const emblemParams = { rnd, energies: params.energies, lineScale: params.lineScale, cx: size/2, cy: size/2 };
+            if (params.style === 'organica') {
+                emblemData = genOrganica(emblemParams);
+            } else if (params.style === 'geometric') {
+                emblemData = genGeometric({ ...emblemParams, raysLevel: params.raysLevel });
+            } else if (params.style === 'calligraphic') {
+                emblemData = genCalligraphic({ ...emblemParams, penMul: params.penMul, penSmooth: params.penSmooth });
+            }
 
-  if (!huid || !Number.isFinite(ts) || energies.some(e=>Number.isNaN(e)) || !context){ return setStatus('Заполните все поля', 'err'); }
+            const svgContent = buildSvgContent({ background: backgroundLayer, waves: wavesLayer, spiral: spiralLayer, emblem: emblemData, size, palette, lineScale: params.lineScale });
 
-  setStatus('Генерация...', 'inf');
-  const t0 = performance.now();
+            const metadata = { generatedAt: new Date().toISOString(), version: "v11" };
+            const dataToHash = {
+                seedHex,
+                inputs,
+                layers: { emblem: { type: emblemData.type } },
+                metadata
+            };
+            if(emblemData.type === 'geometric' && emblemData.rays) {
+                dataToHash.layers.emblem.rays = { count: emblemData.rays.count };
+            }
+            
+            const canonicalData = canonicalJSON(dataToHash);
+            const hashHex = await sha256Hex(JSON.stringify(canonicalData));
 
-  const seedHex = await makeSeed(huid, ts, energies, context, style);
-  const prng = new PRNG(seedHex);
+            return { ...dataToHash, hashHex, svgContent };
+        }
 
-  const field = layerField(energies, prng, style);
-  const glyph = layerGlyph(energies, prng, style);
-  const dots  = layerDefensiveDots(energies, prng, style);
+        function canonicalJSON(obj) {
+            if (typeof obj !== 'object' || obj === null) return obj;
+            if (Array.isArray(obj)) return obj.map(canonicalJSON);
+            return Object.keys(obj).sort().reduce((acc, key) => {
+                acc[key] = canonicalJSON(obj[key]);
+                return acc;
+            }, {});
+        }
 
-  const svg = buildSVG(`${field.svg}${glyph.svg}${dots.svg}`);
+        async function handleGenerateClick() {
+            showStatus('Генерация...', 'info');
+            try {
+                const inputs = {
+                    huid: $('huid').value.trim(),
+                    ts: parseInt($('timestamp').value) || Date.now(),
+                    energies: [
+                        clamp(parseInt($('energy1').value) || 0, 0, 5),
+                        clamp(parseInt($('energy2').value) || 0, 0, 5),
+                        clamp(parseInt($('energy3').value) || 0, 0, 5),
+                        clamp(parseInt($('energy4').value) || 0, 0, 5),
+                    ],
+                    context: $('context').value.trim(),
+                    style: $('style').value,
+                    lineScale: parseFloat($('lineScale').value),
+                    wavesIntensity: parseFloat($('wavesIntensity').value),
+                    pointsDensity: parseFloat($('pointsDensity').value),
+                    raysLevel: parseInt($('raysLevel').value),
+                    penMul: parseFloat($('penMul').value),
+                    penSmooth: parseInt($('penSmooth').value),
+                };
 
-  document.getElementById('canvas').innerHTML = svg;
+                if (!inputs.huid) {
+                    showStatus('Пожалуйста, введите HUID.', 'error');
+                    return;
+                }
+                
+                const startTime = performance.now();
+                currentSignatureData = await generateSignature(inputs);
+                const generationTime = Math.round(performance.now() - startTime);
+                
+                currentSignatureData.metadata.generationTime = generationTime;
 
-  const jsonBare = {
-    seedHex,
-    inputs: { huid, ts, energies, context, style },
-    layers: { field: field.meta, glyph: glyph.meta, defensiveDots: dots.meta },
-    metadata: { generatedAt: new Date().toISOString(), version: "v12", generationTime: Math.round(performance.now()-t0) }
-  };
+                $('svgContainer').innerHTML = currentSignatureData.svgContent;
+                $('metadataContainer').style.display = 'block';
+                $('seedDisplay').textContent = currentSignatureData.seedHex.substring(0, 32) + '...';
+                $('hashDisplay').textContent = currentSignatureData.hashHex.substring(0, 32) + '...';
 
-  // канонический JSON РЕКУРСИВНО (без hashHex)
-  const canonical = canonicalStringifyDeep(jsonBare);
-  const hashHex = await sha256Hex(canonical);
+                showStatus(`Генерация завершена за ${generationTime}мс`, 'success');
 
-  current = { ...jsonBare, hashHex, svg };
+            } catch (error) {
+                console.error("Ошибка генерации:", error);
+                showStatus(`Ошибка генерации: ${error.message}`, 'error');
+            }
+        }
 
-  setStatus(`Готово за ${current.metadata.generationTime}мс`, 'ok');
-}
+        function exportFile(filename, content, type) {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error'); return;
+            }
+            const blob = new Blob([content], { type });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
 
-// ---------- экспорт ----------
-function downloadFile(name, content, type){
-  const blob = new Blob([content], {type});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+        function exportPNG() {
+            if (!currentSignatureData) {
+                showStatus('Сначала сгенерируйте подпись', 'error'); return;
+            }
+            const canvas = document.createElement('canvas');
+            const size = 512;
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            const svgBlob = new Blob([currentSignatureData.svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+                canvas.toBlob((blob) => {
+                    exportFile(`signature-${currentSignatureData.inputs.huid}.png`, blob, 'image/png');
+                    showStatus('PNG экспортирован', 'success');
+                });
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                showStatus('Ошибка при рендеринге PNG', 'error');
+            };
+            img.src = url;
+        }
 
-function exportSVG(){
-  if (!current) return setStatus('Сначала сгенерируйте', 'err');
-  downloadFile(`energy-${current.inputs.huid}.svg`, current.svg, 'image/svg+xml');
-}
-function exportJSON(){
-  if (!current) return setStatus('Сначала сгенерируйте', 'err');
-  const out = { seedHex: current.seedHex, hashHex: current.hashHex, inputs: current.inputs, layers: current.layers, metadata: current.metadata };
-  downloadFile(`energy-${current.inputs.huid}.json`, JSON.stringify(out, null, 2), 'application/json');
-}
-function exportPNG(){
-  if (!current) return setStatus('Сначала сгенерируйте', 'err');
-  const img = new Image();
-  const url = URL.createObjectURL(new Blob([current.svg], {type:'image/svg+xml'}));
-  img.onload = ()=>{
-    const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
-    canvas.toBlob(b=>downloadFile(`energy-${current.inputs.huid}.png`, b, 'image/png'));
-  };
-  img.src = url;
-}
+        async function runTests() {
+            const resultsDiv = $('testResults');
+            resultsDiv.textContent = 'Выполнение тестов...\n\n';
+            showStatus('Запуск тестов...', 'info');
 
-// ---------- тесты ----------
-async function runTests(){
-  const out = [];
-  try{
-    out.push("РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ\n");
+            let allPass = true;
+            let resultsText = 'РЕЗУЛЬТАТЫ КОМПЛЕКСНОГО ТЕСТИРОВАНИЯ v11\n' + '='.repeat(40) + '\n\n';
 
-    // T1: детерминизм — полное SVG 512×512
-    const base = {huid:'TEST-DET', ts:1640995200000, energies:[1,2,3,4], context:'test'};
-    const style='organica';
-    const svgHashes=[];
-    for (let i=0;i<3;i++){
-      const seedHex = await makeSeed(base.huid, base.ts, base.energies, base.context, style);
-      const prng = new PRNG(seedHex);
-      const s1 = layerField(base.energies, prng, style).svg;
-      const s2 = layerGlyph(base.energies, prng, style).svg;
-      const s3 = layerDefensiveDots(base.energies, prng, style).svg;
-      const svg = buildSVG(`${s1}${s2}${s3}`);
-      svgHashes.push(await sha256Hex(svg));
-    }
-    const t1 = (svgHashes[0]===svgHashes[1] && svgHashes[1]===svgHashes[2]);
-    out.push(`T1 Детерминизм: ${t1?'PASS':'FAIL'}  hash=${svgHashes[0]}`);
+            resultsText += 'T1: ДЕТЕРМИНИЗМ (3 одинаковых SVG)\n';
+            const t1_inputs = { huid: 'TEST-DETERMINISM-V11', ts: 1723712345678, energies: [1, 2, 3, 4], context: 'test', style: 'organica', lineScale: 1, wavesIntensity: 1, pointsDensity: 1, raysLevel: 50, penMul: 1.4, penSmooth: 2 };
+            const t1_hashes = [];
+            let t1_pass = true;
+            try {
+                for (let i = 0; i < 3; i++) {
+                    const sig = await generateSignature(t1_inputs);
+                    const svgHash = await sha256Hex(sig.svgContent);
+                    t1_hashes.push(svgHash);
+                }
+                if (new Set(t1_hashes).size !== 1) t1_pass = false;
+                resultsText += `   Результат: ${t1_pass ? '✅ PASS' : '❌ FAIL'}\n`;
+                resultsText += `   Hash: ${t1_hashes[0].substring(0, 32)}...\n\n`;
+            } catch (e) { t1_pass = false; resultsText += `   ❌ FAIL: ${e.message}\n\n`; }
+            if (!t1_pass) allPass = false;
 
-    // T2: уникальность — 10 разных HUID
-    const set = new Set();
-    for (let i=0;i<10;i++){
-      const seedHex = await makeSeed(`TEST-${i}`, base.ts, base.energies, base.context, 'organica');
-      const bare = {seedHex, inputs:{huid:`TEST-${i}`, ts:base.ts, energies:base.energies, context:base.context, style:'organica'}, layers:{}, metadata:{version:'v12'}};
-      const canon = canonicalStringifyDeep(bare); // глубокая сортировка
-      set.add(await sha256Hex(canon));
-    }
-    const t2 = set.size===10;
-    out.push(`T2 Уникальность(10 HUID): ${t2?'PASS':'FAIL'}  уникальных=${set.size}/10`);
+            resultsText += 'T2: УНИКАЛЬНОСТЬ (200 HUIDs)\n';
+            const t2_hashes = new Set();
+            const N = 200;
+            let t2_pass = true;
+            try {
+                 for (let i = 0; i < N; i++) {
+                    const sig = await generateSignature({ ...t1_inputs, huid: `TEST-UNIQUE-${i}`, style: 'geometric' });
+                    t2_hashes.add(sig.hashHex);
+                     if (i % 20 === 19) {
+                        resultsDiv.textContent = resultsText + `   Прогресс: ${i + 1}/${N}...`;
+                        await new Promise(r => setTimeout(r, 0));
+                    }
+                }
+                if (t2_hashes.size !== N) t2_pass = false;
+                resultsText += `   Уникальных хешей: ${t2_hashes.size}/${N}\n`;
+                resultsText += `   Результат: ${t2_pass ? '✅ PASS' : '❌ FAIL'}\n\n`;
+            } catch (e) { t2_pass = false; resultsText += `   ❌ FAIL: ${e.message}\n\n`; }
+            if (!t2_pass) allPass = false;
+            
+            resultsText += 'T3: РАЗЛИЧИЕ СТИЛЕЙ (SVG-хэши)\n';
+            let t3_pass = true;
+            try {
+                const t3_inputs = { ...t1_inputs, huid: 'TEST-STYLES-V11' };
+                const sigOrganica = await generateSignature({ ...t3_inputs, style: 'organica' });
+                const sigGeometric = await generateSignature({ ...t3_inputs, style: 'geometric' });
+                const hashOrganica = await sha256Hex(sigOrganica.svgContent);
+                const hashGeometric = await sha256Hex(sigGeometric.svgContent);
 
-    // T3: рендер-стили — SHA-256(SVG) для organica vs geometric
-    const base2 = {huid:'TEST-STYLE', ts:1640995200000, energies:[2,3,4,5], context:'test'};
-    const seedOrg = await makeSeed(base2.huid, base2.ts, base2.energies, base2.context, 'organica');
-    const prOrg = new PRNG(seedOrg);
-    const svgOrg = buildSVG(layerField(base2.energies, prOrg, 'organica').svg + layerGlyph(base2.energies, prOrg, 'organica').svg + layerDefensiveDots(base2.energies, prOrg, 'organica').svg);
-    const hOrg = await sha256Hex(svgOrg);
+                if (hashOrganica === hashGeometric) t3_pass = false;
+                resultsText += `   Hash Organica:  ${hashOrganica.substring(0, 24)}...\n`;
+                resultsText += `   Hash Geometric: ${hashGeometric.substring(0, 24)}...\n`;
+                resultsText += `   Результат: ${t3_pass ? '✅ PASS' : '❌ FAIL (хэши совпали)'}\n\n`;
+            } catch (e) { t3_pass = false; resultsText += `   ❌ FAIL: ${e.message}\n\n`; }
+            if (!t3_pass) allPass = false;
 
-    const seedGeo = await makeSeed(base2.huid, base2.ts, base2.energies, base2.context, 'geometric');
-    const prGeo = new PRNG(seedGeo);
-    const svgGeo = buildSVG(layerField(base2.energies, prGeo, 'geometric').svg + layerGlyph(base2.energies, prGeo, 'geometric').svg + layerDefensiveDots(base2.energies, prGeo, 'geometric').svg);
-    const hGeo = await sha256Hex(svgGeo);
+            resultsText += '='.repeat(40) + '\n';
+            resultsText += `ОБЩИЙ РЕЗУЛЬТАТ: ${allPass ? '✅ ALL TESTS PASSED' : '❌ SOME TESTS FAILED'}\n`;
+            resultsDiv.textContent = resultsText;
+            showStatus(allPass ? 'Все тесты пройдены!' : '⚠️ Некоторые тесты не пройдены', allPass ? 'success' : 'error');
+        }
+        
+        async function validateFromJSON() {
+            if (!jsonFileContent) {
+                showStatus('Сначала загрузите JSON файл.', 'error'); return;
+            }
+            const resultsDiv = $('validationResults');
+            resultsDiv.textContent = 'Валидация файла...\n\n';
+            showStatus('Валидация...', 'info');
 
-    const t3 = (hOrg !== hGeo);
-    out.push(`T3 Стили (SHA-256(SVG)): ${t3?'PASS':'FAIL'}\n  organica: ${hOrg}\n  geometric: ${hGeo}`);
+            try {
+                const { hashHex: originalHash, ...dataToRehash } = jsonFileContent;
+                if (!originalHash || !dataToRehash.inputs || !dataToRehash.seedHex) {
+                    throw new Error("Неверный формат JSON: отсутствуют обязательные поля.");
+                }
 
-    const all = t1 && t2 && t3;
-    out.push(`\nИТОГО: ${all?'ALL TESTS PASSED ✅':'SOME TESTS FAILED ❌'}`);
-  }catch(err){
-    out.push("Ошибка тестов: "+err.message);
-  }
-  document.getElementById('tests').textContent = out.join('\n');
-  setStatus('Тесты выполнены', 'ok');
-}
+                const recalculatedSeed = await sha256Hex(makeSeedString(dataToRehash.inputs));
+                const seedMatch = dataToRehash.seedHex === recalculatedSeed;
+                const canonicalData = canonicalJSON(dataToRehash);
+                const recalculatedHash = await sha256Hex(JSON.stringify(canonicalData));
+                const hashMatch = originalHash === recalculatedHash;
 
-// ---------- валидатор ----------
-async function validateFromFile(){
-  const f = document.getElementById('jsonFile').files[0];
-  if (!f) return setStatus('Выберите JSON', 'err');
-  try{
-    const txt = await f.text();
-    const data = JSON.parse(txt);
-    const {seedHex, hashHex, inputs} = data;
-    // пересчитать seed
-    const reSeed = await makeSeed(inputs.huid, inputs.ts, inputs.energies, inputs.context, inputs.style);
-    // пересчитать hashHex от канонического JSON БЕЗ hashHex
-    const copy = JSON.parse(JSON.stringify(data));
-    delete copy.hashHex;
-    const canon = canonicalStringifyDeep(copy);
-    const reHash = await sha256Hex(canon);
+                let resultsText = `🔍 РЕЗУЛЬТАТЫ ВАЛИДАЦИИ\n` + '='.repeat(40) + '\n\n';
+                resultsText += `Seed совпадает: ${seedMatch ? '✅ ДА' : '❌ НЕТ'}\n`;
+                resultsText += ` - Оригинал: ${dataToRehash.seedHex.substring(0,32)}...\n`;
+                resultsText += ` - Пересчет:  ${recalculatedSeed.substring(0,32)}...\n\n`;
+                resultsText += `Контент-хэш совпадает: ${hashMatch ? '✅ ДА' : '❌ НЕТ'}\n`;
+                resultsText += ` - Оригинал: ${originalHash.substring(0,32)}...\n`;
+                resultsText += ` - Пересчет:  ${recalculatedHash.substring(0,32)}...\n\n`;
+                resultsText += `🏁 ВЕРДИКТ: ${seedMatch && hashMatch ? '✅ ВАЛИДАЦИЯ ПРОЙДЕНА' : '❌ ВАЛИДАЦИЯ НЕ ПРОЙДЕНА'}\n`;
 
-    const okSeed = (reSeed===seedHex);
-    const okHash = (reHash===hashHex);
+                resultsDiv.textContent = resultsText;
+                showStatus(seedMatch && hashMatch ? '✅ Валидация успешна' : '❌ Валидация не пройдена', seedMatch && hashMatch ? 'success' : 'error');
 
-    document.getElementById('validation').textContent =
-`Валидация JSON:
- seedHex  : ${okSeed?'OK':'MISMATCH'}
-  - исходный: ${seedHex}
-  - пересчет: ${reSeed}
- hashHex  : ${okHash?'OK':'MISMATCH'}
-  - исходный: ${hashHex}
-  - пересчет: ${reHash}
- Итог     : ${okSeed && okHash ? 'PASS' : 'FAIL'}`;
-    setStatus(okSeed && okHash ? 'Валидация пройдена' : 'Валидация не пройдена', okSeed&&okHash?'ok':'err');
-  }catch(e){
-    setStatus('Ошибка валидации: '+e.message, 'err');
-  }
-}
+            } catch(error) {
+                console.error("Ошибка валидации:", error);
+                resultsDiv.textContent = `❌ Ошибка валидации: ${error.message}`;
+                showStatus(`Ошибка валидации: ${error.message}`, 'error');
+            }
+        }
 
-// ---------- служебные ----------
-function setStatus(msg, kind){
-  const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = 'panel ' + (kind==='ok'?'ok':kind==='err'?'err':'inf');
-  el.style.display='block';
-  if (kind!=='err'){ setTimeout(()=>el.style.display='none',2500); }
-}
+        function showStatus(message, type) {
+            const el = $('statusInfo');
+            el.textContent = message;
+            el.className = `status-info status-${type}`;
+            el.style.display = 'block';
+            setTimeout(() => {
+                if (el.textContent === message) el.style.display = 'none';
+            }, 4000);
+        }
 
-// headless режим совместим с исходным ТЗ (?auto=1&fmt=json|svg|png)
-async function headless(){
-  const p = new URLSearchParams(location.search);
-  if (p.get('auto')!=='1') return;
-  const fmt = p.get('fmt')||'json';
-  // скрыть интерфейс
-  document.body.style.display='none';
+        function updateSliderValue(sliderId, displayId) {
+            const slider = $(sliderId);
+            const display = $(displayId);
+            if (slider && display) display.textContent = slider.value;
+        }
 
-  // заполнить параметры по умолчанию
-  document.getElementById('timestamp').value = Date.now();
-  await generate();
+        document.addEventListener('DOMContentLoaded', () => {
+            $('timestamp').value = Date.now();
 
-  if (!current){ document.body.innerHTML = '<pre>error</pre>'; document.body.style.display='block'; return; }
+            $('generateButton').addEventListener('click', handleGenerateClick);
+            $('runTestsButton').addEventListener('click', runTests);
+            $('validateJSONButton').addEventListener('click', validateFromJSON);
 
-  if (fmt==='json'){
-    const out = { seedHex: current.seedHex, hashHex: current.hashHex, inputs: current.inputs, layers: current.layers, metadata: current.metadata };
-    document.body.innerHTML = `<pre class="mono">${JSON.stringify(out,null,2)}</pre>`;
-  } else if (fmt==='svg'){
-    document.body.innerText = current.svg;
-  } else if (fmt==='png'){
-    // минимальная реализация: отдаём dataURL
-    const img = new Image();
-    const url = URL.createObjectURL(new Blob([current.svg], {type:'image/svg+xml'}));
-    img.onload = ()=>{
-      const canvas = document.createElement('canvas'); canvas.width=512; canvas.height=512;
-      const ctx = canvas.getContext('2d'); ctx.drawImage(img,0,0); URL.revokeObjectURL(url);
-      document.body.innerText = canvas.toDataURL('image/png');
-    };
-    img.src = url;
-  }
-  document.body.style.display='block';
-}
+            $('exportPNGButton').addEventListener('click', exportPNG);
+            $('exportSVGButton').addEventListener('click', () => exportFile(`signature-${currentSignatureData?.inputs?.huid}.svg`, currentSignatureData?.svgContent || '', 'image/svg+xml;charset=utf-8'));
+            $('exportJSONButton').addEventListener('click', () => {
+                if (!currentSignatureData) { showStatus('Сначала сгенерируйте подпись', 'error'); return; }
+                const { svgContent, ...jsonData } = currentSignatureData;
+                exportFile(`signature-${jsonData.inputs.huid}.json`, JSON.stringify(canonicalJSON(jsonData), null, 2), 'application/json')
+            });
+            
+            $('jsonFile').addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            jsonFileContent = JSON.parse(e.target.result);
+                            showStatus(`Файл ${file.name} загружен`, 'success');
+                            $('validationResults').textContent = `Файл ${file.name} готов к валидации.`;
+                        } catch (error) {
+                            jsonFileContent = null;
+                            showStatus('Ошибка парсинга JSON', 'error');
+                            $('validationResults').textContent = `Ошибка чтения файла: ${error.message}`;
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
 
-document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('timestamp').value = Date.now();
-  headless();
-});
-</script>
+            ['lineScale', 'wavesIntensity', 'pointsDensity', 'raysLevel', 'penMul', 'penSmooth'].forEach(id => {
+                $(id).addEventListener('input', () => updateSliderValue(id, id + 'Value'));
+            });
+
+            $('style').addEventListener('change', (e) => {
+                $('calligraphicParams').style.display = e.target.value === 'calligraphic' ? 'block' : 'none';
+            });
+
+            handleGenerateClick();
+        });
+    </script>
 </body>
 </html>
