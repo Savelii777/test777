@@ -521,8 +521,7 @@
                 <button class="button" id="generateButton">Генерировать Подпись</button>
                 
                 <div class="export-buttons">
-                    <button class="button button-secondary" id="exportPNGButton">PNG 512</button>
-                    <button class="button button-secondary" id="exportPNG1024Button">PNG 1024</button>
+                    <button class="button button-secondary" id="exportPNGButton">PNG</button>
                     <button class="button button-secondary" id="exportSVGButton">SVG</button>
                     <button class="button button-success" id="exportJSONButton">JSON</button>
                 </div>
@@ -601,73 +600,26 @@
 
         const _enc = (typeof TextEncoder !== 'undefined') ? new TextEncoder() : { encode: s => new Uint8Array([...unescape(encodeURIComponent(s))].map(c => c.charCodeAt(0))) };
         const _hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
-
-        // sha256Hex: always compute real SHA-256 using the built-in pure-JS implementation
-        // (deterministic, compact, no external deps). This does not rely on crypto.subtle
-        // to ensure identical behavior across environments.
-        async function sha256Hex(message) {
-            // Pure-JS SHA-256 implementation (compact, public-domain style).
-            // Source idea: standard SHA-256 algorithm; adapted inline to avoid external deps.
-            function rotr(n, x) { return (x >>> n) | (x << (32 - n)); }
-            function utf8Bytes(str) { return Array.from(_enc.encode(str)); }
-            const K = [
-                0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
-                0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
-                0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
-                0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
-                0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
-                0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
-                0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
-                0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
-            ];
-
-            const bytes = utf8Bytes(message);
-            const bitLen = bytes.length * 8;
-            // padding
-            bytes.push(0x80);
-            while ((bytes.length % 64) !== 56) bytes.push(0x00);
-            // append length big-endian
-            for (let i = 7; i >= 0; i--) bytes.push((bitLen >>> (i * 8)) & 0xff);
-
-            let H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-
-            const W = new Array(64);
-            for (let i = 0; i < bytes.length; i += 64) {
-                for (let t = 0; t < 16; t++) {
-                    const j = i + t * 4;
-                    W[t] = ((bytes[j] << 24) | (bytes[j+1] << 16) | (bytes[j+2] << 8) | (bytes[j+3])) >>> 0;
-                }
-                for (let t = 16; t < 64; t++) {
-                    const s0 = (rotr(7, W[t-15]) ^ rotr(18, W[t-15]) ^ (W[t-15] >>> 3)) >>> 0;
-                    const s1 = (rotr(17, W[t-2]) ^ rotr(19, W[t-2]) ^ (W[t-2] >>> 10)) >>> 0;
-                    W[t] = (W[t-16] + s0 + W[t-7] + s1) >>> 0;
-                }
-
-                let a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
-                for (let t = 0; t < 64; t++) {
-                    const S1 = (rotr(6, e) ^ rotr(11, e) ^ rotr(25, e)) >>> 0;
-                    const ch = ((e & f) ^ (~e & g)) >>> 0;
-                    const temp1 = (h + S1 + ch + K[t] + W[t]) >>> 0;
-                    const S0 = (rotr(2, a) ^ rotr(13, a) ^ rotr(22, a)) >>> 0;
-                    const maj = ((a & b) ^ (a & c) ^ (b & c)) >>> 0;
-                    const temp2 = (S0 + maj) >>> 0;
-                    h = g; g = f; f = e; e = (d + temp1) >>> 0;
-                    d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
-                }
-                H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0; H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
-                H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0; H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
+        async function sha256Hex(s) {
+            try {
+                if (crypto?.subtle?.digest) return _hex(await crypto.subtle.digest('SHA-256', _enc.encode(s)));
+            } catch (_) {}
+            let h1 = 0x811c9dc5 >>> 0, h2 = 0x01000193 >>> 0;
+            for (let i = 0; i < s.length; i++) {
+                const ch = s.charCodeAt(i);
+                h1 ^= ch;
+                h1 = Math.imul(h1, 0x01000193) >>> 0;
+                h2 ^= (h1 >>> 13);
+                h2 = Math.imul(h2, 0x85ebca6b) >>> 0;
             }
-
-            // produce hex
-            return H.map(h => h.toString(16).padStart(8, '0')).join('');
+            return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).repeat(4);
         }
 
-    const V11 = 'v11';
-    const V12 = 'v12';
+        const V11 = 'v11';
         function makeSeedString({ huid, ts, energies, context, style }) {
             if (!new RegExp('^[A-Za-z0-9._-]{3,64}$').test(huid || '')) throw new Error('HUID_INVALID');
             const eCSV = Array.isArray(energies) ? energies.join(',') : String(energies);
-            return `${huid}|${ts}|${eCSV}|${context}|${style}|${V12}`;
+            return `${huid}|${ts}|${eCSV}|${context}|${style}|${V11}`;
         }
         const _u32 = (h, o) => parseInt(h.slice(o, o + 8), 16) >>> 0;
         const _sfc32 = (a, b, c, d) => () => { a |= 0; b |= 0; c |= 0; d |= 0; let t = (a + b | 0) + d | 0; d = d + 1 | 0; a = b ^ (b >>> 9); b = c + (c << 3) | 0; c = (c << 21) | (c >>> 11); c = c + t | 0; return (t >>> 0) / 4294967296 };
@@ -733,7 +685,7 @@
             return { type: 'organica', path: smooth, core: { cx, cy, r: Number(coreR.toFixed(2)) } };
         }
 
-    function genGeometric({ cx = 256, cy = 256, rnd, energies: [P, I, E, C], raysLevel = 0, lineScale = 1.0 }) {
+        function genGeometric({ cx = 256, cy = 256, rnd, energies: [P, I, E, C], raysLevel = 0, lineScale = 1.0 }) {
             const n = clamp(2.0 - P * 0.2 + rnd() * 0.5, 0.6, 3.0);
             const R = 120 + I * 3;
             const k = 3 + Math.floor(C * 1.2 + rnd() * 3);
@@ -750,27 +702,15 @@
             }
             let rays = null;
             if (raysLevel > 0) {
-                // deterministic count based on C and raysLevel
-                const countBase = 24 + 6 * C;
-                const count = Math.max(6, Math.round(countBase * (clamp(raysLevel, 0, 100) / 100)));
-                const r1 = 40 + I * 6;
-                // r2 varies slightly with P and E to make anti-tamper pattern
-                const r2Base = 200 + P * 10;
-                const items = [];
+                const count = Math.round((24 + 6 * C) * (clamp(raysLevel, 0, 100) / 100));
+                const r1 = 40 + I * 6, r2 = 200 + P * 10;
                 const step = TAU / count;
+                const items = [];
                 for (let i = 0; i < count; i++) {
                     const a = i * step + rot * 0.5;
-                    // deterministically vary r2 and stroke-width using rnd influenced by energies
-                    // narrow deterministic r2 variation: base +/- (0..(2+E))
-                    const r2delta = ((rnd() - 0.5) * (2 + E)) ;
-                    const r2 = r2Base + r2delta;
-                    // stroke width in narrow determin. range influenced by E/C
-                    const swBase = 0.6 + (E / Math.max(1, C)) * 0.3;
-                    const swDelta = (rnd() - 0.5) * 0.4; // +/-0.2
-                    const sw = clamp(swBase + swDelta, 0.35, 2.2) * lineScale;
-                    items.push({ x1: cx + Math.cos(a) * r1, y1: cy + Math.sin(a) * r1, x2: cx + Math.cos(a) * r2, y2: cy + Math.sin(a) * r2, strokeWidth: Number(sw.toFixed(3)), r1, r2: Number(r2.toFixed(3)) });
+                    items.push({ x1: cx + Math.cos(a) * r1, y1: cy + Math.sin(a) * r1, x2: cx + Math.cos(a) * r2, y2: cy + Math.sin(a) * r2 });
                 }
-                rays = { count, r1, r2: r2Base, items };
+                rays = { count, r1, r2, items };
             }
             const coreR = 28 + ((P + I + E + C) / 4) * 3 * lineScale;
             return { type: 'geometric', path: catmullRomPath(pts, true), rays, core: { cx, cy, r: Number(coreR.toFixed(2)) } };
@@ -814,95 +754,69 @@
             return { type: 'calligraphic', path: d, core: { cx, cy, r: Number(coreR.toFixed(2)) } };
         }
         
-        // background with 2-3 pale shades deterministically derived from palette.pale
-    function generateBackgroundLayer(rnd, palette, { size, density, energies }) {
-            const pointsCount = Math.round(150 * density);
-            const baseRect = `<rect width="${size}" height="${size}" fill="${palette.bg}" />`;
-            // derive 2-3 pale shades deterministically
-            const paleBase = palette.pale; // rgba string
-            const shades = [];
-            const paleSeed = Math.floor(rnd() * 10000);
-            for (let i = 0; i < 3; i++) {
-                // small deterministic tweak to alpha and hue-like shift
-                const alpha = clamp(0.25 + (i * 0.08) + ((energies[2] || 0) * 0.02), 0.12, 0.6);
-                shades.push(paleBase.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, `rgba($1,$2,$3,${alpha.toFixed(2)})`));
-            }
-
-            let svg = baseRect;
+        function generateBackgroundLayer(rnd, palette, { size, density }) {
+            const pointsCount = 150 * density;
+            let svg = `<rect width="${size}" height="${size}" fill="${palette.bg}" />`;
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            g.setAttribute('opacity', '1');
+            g.setAttribute('opacity', '0.4');
 
             for (let i = 0; i < pointsCount; i++) {
                 const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 c.setAttribute('cx', (rnd() * size).toFixed(2));
                 c.setAttribute('cy', (rnd() * size).toFixed(2));
                 c.setAttribute('r', (rnd() * 1.5 + 0.4).toFixed(2));
-                // pick one of the shades deterministically
-                const shade = shades[(i + paleSeed) % shades.length];
-                c.setAttribute('fill', shade);
-                c.setAttribute('fill-opacity', (0.08 + rnd() * 0.22).toFixed(2));
+                c.setAttribute('fill', palette.pale);
+                c.setAttribute('fill-opacity', (rnd() * 0.5 + 0.2).toFixed(2));
                 g.appendChild(c);
             }
-            return { svg: svg + g.outerHTML, shades };
+            return svg + g.outerHTML;
         }
-        function generateWavesLayer(rnd, palette, { size, intensity, energies }) {
+
+        function generateWavesLayer(rnd, palette, { size, intensity }) {
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.setAttribute('fill', 'none');
             g.setAttribute('stroke', palette.pale);
-            g.setAttribute('stroke-opacity', (0.18 * intensity).toFixed(2));
+            g.setAttribute('stroke-opacity', (0.2 * intensity).toFixed(2));
 
-            // rings depend directly on P
-            const P = energies[0] || 0;
-            const rings = 6 + P; // per requirement: rings = 6 + P
-            // stroke width base: function of E/C (if C==0, use E)
-            const E = energies[2] || 0, C = energies[3] || 1;
-            const baseStroke = clamp(0.4 + (E / Math.max(1, C)) * 1.2, 0.3, 3.0);
-
+            const rings = 3 + Math.floor(rnd() * 5 * intensity);
             for (let i = 0; i < rings; i++) {
                 const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 c.setAttribute('cx', size / 2);
                 c.setAttribute('cy', size / 2);
-                const jitter = (rnd() - 0.5) * 8;
-                c.setAttribute('r', (size * 0.12 + i * size * 0.07 + jitter).toFixed(2));
-                c.setAttribute('stroke-width', (baseStroke * (1 + (i / rings) * 0.6)).toFixed(2));
+                c.setAttribute('r', (size * 0.1 + i * size * 0.08 + rnd() * 10).toFixed(2));
+                c.setAttribute('stroke-width', (rnd() * 1.2 + 0.5).toFixed(2));
                 g.appendChild(c);
             }
-            return { svg: g.outerHTML, rings, baseStroke };
+            return g.outerHTML;
         }
 
-        function generateSpiralLayer(rnd, palette, { size, intensity, energies }) {
-            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        function generateSpiralLayer(rnd, palette, { size, intensity }) {
+             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             g.setAttribute('fill', 'none');
             g.setAttribute('stroke', palette.pale);
-
-            // turns depend on I and C per requirement
-            const I = energies[1] || 0, C = energies[3] || 0;
-            const spiralTurns = 2 + Math.round((I + C) / 2); // per requirement: turns = 2 + round((I+C)/2)
-            if (spiralTurns < 1) return { svg: '', turns: 0, strokeW: 0 };
-
-            // stroke width influenced by E/C
-            const E = energies[2] || 0;
-            const strokeW = clamp(0.5 + (E / Math.max(1, C)) * 0.8, 0.3, 3.0);
+            
+            const spiralTurns = (1 + rnd() * 4) * intensity;
+            if (spiralTurns < 0.5) return '';
 
             let dSp = '';
-            const steps = 220;
+            const steps = 200;
             for (let i = 0; i <= steps; i++) {
                 const t = i / steps;
                 const ang = t * TAU * spiralTurns;
-                const rad = size * 0.05 + t * size * 0.45;
+                const rad = size * 0.05 + t * size * 0.4;
                 const x = (size / 2 + Math.cos(ang) * rad).toFixed(2);
                 const y = (size / 2 + Math.sin(ang) * rad).toFixed(2);
                 dSp += (i ? ' L' : 'M') + x + ',' + y;
             }
             const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             p.setAttribute('d', dSp);
-            p.setAttribute('stroke-width', strokeW.toFixed(2));
-            p.setAttribute('stroke-opacity', (0.28 * intensity).toFixed(2));
+            p.setAttribute('stroke-width', (rnd() * 1.0 + 0.6).toFixed(2));
+            p.setAttribute('stroke-opacity', (0.3 * intensity).toFixed(2));
             g.appendChild(p);
-            return { svg: g.outerHTML, turns: spiralTurns, strokeW };
+            return g.outerHTML;
         }
 
-    function buildSvgContent({ background, waves, spiral, emblem, size, palette, lineScale }) {
+        function buildSvgContent({ background, waves, spiral, emblem, size, palette, lineScale }) {
             const mainPathFill = emblem.type === 'calligraphic' ? palette.main : 'none';
             const mainPathStroke = palette.main;
 
@@ -915,7 +829,7 @@
                     const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     l.setAttribute('x1', r.x1.toFixed(2)); l.setAttribute('y1', r.y1.toFixed(2));
                     l.setAttribute('x2', r.x2.toFixed(2)); l.setAttribute('y2', r.y2.toFixed(2));
-                    l.setAttribute('stroke-width', (r.strokeWidth || (0.6 * lineScale)).toFixed(2));
+                    l.setAttribute('stroke-width', (0.6 * lineScale).toFixed(2));
                     g.appendChild(l);
                 });
                 raysSvg = g.outerHTML;
@@ -947,9 +861,9 @@
             const size = 512;
             const palette = palettes.gold;
 
-            const backgroundLayer = generateBackgroundLayer(rnd, palette, { size, density: params.pointsDensity, energies: params.energies });
-            const wavesLayer = generateWavesLayer(rnd, palette, { size, intensity: params.wavesIntensity, energies: params.energies });
-            const spiralLayer = generateSpiralLayer(rnd, palette, { size, intensity: params.wavesIntensity, energies: params.energies });
+            const backgroundLayer = generateBackgroundLayer(rnd, palette, { size, density: params.pointsDensity });
+            const wavesLayer = generateWavesLayer(rnd, palette, { size, intensity: params.wavesIntensity });
+            const spiralLayer = generateSpiralLayer(rnd, palette, { size, intensity: params.wavesIntensity });
 
             let emblemData;
             const emblemParams = { rnd, energies: params.energies, lineScale: params.lineScale, cx: size/2, cy: size/2 };
@@ -961,40 +875,19 @@
                 emblemData = genCalligraphic({ ...emblemParams, penMul: params.penMul, penSmooth: params.penSmooth });
             }
 
-            // backgroundLayer is svg string, wavesLayer and spiralLayer return {svg, ...}
-            const svgContent = buildSvgContent({ background: backgroundLayer.svg || backgroundLayer, waves: wavesLayer.svg || wavesLayer, spiral: spiralLayer.svg || spiralLayer, emblem: emblemData, size, palette, lineScale: params.lineScale });
+            const svgContent = buildSvgContent({ background: backgroundLayer, waves: wavesLayer, spiral: spiralLayer, emblem: emblemData, size, palette, lineScale: params.lineScale });
 
-            const metadata = { generatedAt: new Date().toISOString(), version: V12 };
-            const layers = {
-                background: { pointsDensity: params.pointsDensity, shades: null },
-                waves: { rings: wavesLayer.rings || (6 + params.energies[0]), baseStroke: wavesLayer.baseStroke || null },
-                spiral: { turns: spiralLayer.turns || (2 + Math.round((params.energies[1] + params.energies[3]) / 2)), strokeW: spiralLayer.strokeW || null },
-                emblem: { type: emblemData.type }
-            };
-
-            // extract background shades info if possible
-            try {
-                layers.background.shades = { shades: backgroundLayer.shades || null };
-            } catch (e) { layers.background.shades = null; }
-
-            // add emblem details
-            if (emblemData.type === 'geometric' && emblemData.rays) {
-                // ensure rays include deterministic strokeWidth and r2 per item
-                const items = emblemData.rays.items.map(it => ({ strokeWidth: it.strokeWidth, r1: it.r1, r2: it.r2, x1: Number(it.x1.toFixed(2)), y1: Number(it.y1.toFixed(2)), x2: Number(it.x2.toFixed(2)), y2: Number(it.y2.toFixed(2)) }));
-                layers.emblem.rays = { count: emblemData.rays.count, r1: emblemData.rays.r1, r2: emblemData.rays.r2, itemsCount: items.length, items };
-            }
-
-            if (emblemData.type === 'calligraphic') {
-                layers.emblem.pen = { penMul: params.penMul, penSmooth: params.penSmooth };
-            }
-
+            const metadata = { generatedAt: new Date().toISOString(), version: "v11" };
             const dataToHash = {
                 seedHex,
                 inputs,
-                layers,
+                layers: { emblem: { type: emblemData.type } },
                 metadata
             };
-
+            if(emblemData.type === 'geometric' && emblemData.rays) {
+                dataToHash.layers.emblem.rays = { count: emblemData.rays.count };
+            }
+            
             const canonicalData = canonicalJSON(dataToHash);
             const hashHex = await sha256Hex(JSON.stringify(canonicalData));
 
@@ -1070,68 +963,30 @@
             URL.revokeObjectURL(link.href);
         }
 
-        function svgToImageBlob(svgContent, size, removeFilters = true) {
-            // remove filter defs / filter attributes to avoid tainted canvas issues
-            let svg = svgContent;
-            if (removeFilters) {
-                try {
-                    const doc = new DOMParser().parseFromString(svgContent, 'image/svg+xml');
-                    // remove filter attributes and defs
-                    const els = doc.querySelectorAll('[filter]');
-                    els.forEach(e => e.removeAttribute('filter'));
-                    const defs = doc.querySelectorAll('defs');
-                    defs.forEach(d => d.parentNode.removeChild(d));
-                    svg = new XMLSerializer().serializeToString(doc.documentElement);
-                } catch (e) {
-                    // fallback: strip common filter id refs
-                    svg = svg.replace(/filter="url\([^\)]+\)"/g, '');
-                    svg = svg.replace(/<defs[\s\S]*?<\/defs>/g, '');
-                }
-            }
-            return new Promise((resolve, reject) => {
-                const canvas = document.createElement('canvas');
-                canvas.width = size; canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-                const url = URL.createObjectURL(svgBlob);
-                img.onload = () => {
-                    ctx.clearRect(0,0,size,size);
-                    ctx.drawImage(img, 0, 0, size, size);
-                    URL.revokeObjectURL(url);
-                    canvas.toBlob((blob) => {
-                        resolve(blob);
-                    }, 'image/png');
-                };
-                img.onerror = (e) => { URL.revokeObjectURL(url); reject(new Error('Image load error')); };
-                img.src = url;
-            });
-        }
-
-        async function exportPNG() {
+        function exportPNG() {
             if (!currentSignatureData) {
                 showStatus('Сначала сгенерируйте подпись', 'error'); return;
             }
-            try {
-                const blob = await svgToImageBlob(currentSignatureData.svgContent, 512, true);
-                exportFile(`signature-${currentSignatureData.inputs.huid}-512.png`, blob, 'image/png');
-                showStatus('PNG 512 экспортирован', 'success');
-            } catch (e) {
-                console.error(e);
-                showStatus('Ошибка при рендеринге PNG 512', 'error');
-            }
-        }
-
-        async function exportPNG1024() {
-            if (!currentSignatureData) { showStatus('Сначала сгенерируйте подпись', 'error'); return; }
-            try {
-                const blob = await svgToImageBlob(currentSignatureData.svgContent, 1024, true);
-                exportFile(`signature-${currentSignatureData.inputs.huid}-1024.png`, blob, 'image/png');
-                showStatus('PNG 1024 экспортирован', 'success');
-            } catch (e) {
-                console.error(e);
-                showStatus('Ошибка при рендеринге PNG 1024', 'error');
-            }
+            const canvas = document.createElement('canvas');
+            const size = 512;
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            const svgBlob = new Blob([currentSignatureData.svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+                canvas.toBlob((blob) => {
+                    exportFile(`signature-${currentSignatureData.inputs.huid}.png`, blob, 'image/png');
+                    showStatus('PNG экспортирован', 'success');
+                });
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                showStatus('Ошибка при рендеринге PNG', 'error');
+            };
+            img.src = url;
         }
 
         async function runTests() {
@@ -1140,10 +995,10 @@
             showStatus('Запуск тестов...', 'info');
 
             let allPass = true;
-            let resultsText = 'РЕЗУЛЬТАТЫ КОМПЛЕКСНОГО ТЕСТИРОВАНИЯ v12\n' + '='.repeat(40) + '\n\n';
+            let resultsText = 'РЕЗУЛЬТАТЫ КОМПЛЕКСНОГО ТЕСТИРОВАНИЯ v11\n' + '='.repeat(40) + '\n\n';
 
             resultsText += 'T1: ДЕТЕРМИНИЗМ (3 одинаковых SVG)\n';
-            const t1_inputs = { huid: 'TEST-DETERMINISM-V12', ts: 1723712345678, energies: [1, 2, 3, 4], context: 'test', style: 'organica', lineScale: 1, wavesIntensity: 1, pointsDensity: 1, raysLevel: 50, penMul: 1.4, penSmooth: 2 };
+            const t1_inputs = { huid: 'TEST-DETERMINISM-V11', ts: 1723712345678, energies: [1, 2, 3, 4], context: 'test', style: 'organica', lineScale: 1, wavesIntensity: 1, pointsDensity: 1, raysLevel: 50, penMul: 1.4, penSmooth: 2 };
             const t1_hashes = [];
             let t1_pass = true;
             try {
@@ -1163,7 +1018,7 @@
             const N = 200;
             let t2_pass = true;
             try {
-                for (let i = 0; i < N; i++) {
+                 for (let i = 0; i < N; i++) {
                     const sig = await generateSignature({ ...t1_inputs, huid: `TEST-UNIQUE-${i}`, style: 'geometric' });
                     t2_hashes.add(sig.hashHex);
                      if (i % 20 === 19) {
@@ -1262,7 +1117,6 @@
             $('validateJSONButton').addEventListener('click', validateFromJSON);
 
             $('exportPNGButton').addEventListener('click', exportPNG);
-            $('exportPNG1024Button').addEventListener('click', exportPNG1024);
             $('exportSVGButton').addEventListener('click', () => exportFile(`signature-${currentSignatureData?.inputs?.huid}.svg`, currentSignatureData?.svgContent || '', 'image/svg+xml;charset=utf-8'));
             $('exportJSONButton').addEventListener('click', () => {
                 if (!currentSignatureData) { showStatus('Сначала сгенерируйте подпись', 'error'); return; }
